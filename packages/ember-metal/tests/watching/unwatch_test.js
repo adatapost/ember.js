@@ -1,22 +1,17 @@
-import testBoth from 'ember-metal/tests/props_helper';
+import { testBoth } from 'ember-metal/tests/props_helper';
 import {
   watch,
   unwatch
-} from "ember-metal/watching";
-import {
-  propertyWillChange,
-  propertyDidChange
-} from "ember-metal/property_events";
+} from 'ember-metal/watching';
 import { defineProperty } from 'ember-metal/properties';
-import { addListener } from "ember-metal/events";
+import { addListener } from 'ember-metal/events';
 import { computed } from 'ember-metal/computed';
-import { get } from 'ember-metal/property_get';
 import { set } from 'ember-metal/property_set';
 
 var willCount, didCount;
 
 QUnit.module('unwatch', {
-  setup: function() {
+  setup() {
     willCount = didCount = 0;
   }
 });
@@ -33,9 +28,14 @@ function addListeners(obj, keyPath) {
 testBoth('unwatching a computed property - regular get/set', function(get, set) {
 
   var obj = {};
-  defineProperty(obj, 'foo', computed(function(keyName, value) {
-    if (value !== undefined) this.__foo = value;
-    return this.__foo;
+  defineProperty(obj, 'foo', computed({
+    get: function() {
+      return this.__foo;
+    },
+    set: function(keyName, value) {
+      this.__foo = value;
+      return this.__foo;
+    }
   }));
   addListeners(obj, 'foo');
 
@@ -69,7 +69,7 @@ testBoth('unwatching a regular property - regular get/set', function(get, set) {
   equal(didCount, 0, 'should NOT have invoked didCount');
 });
 
-test('unwatching should be nested', function() {
+QUnit.test('unwatching should be nested', function() {
 
   var obj = { foo: 'BIFF' };
   addListeners(obj, 'foo');

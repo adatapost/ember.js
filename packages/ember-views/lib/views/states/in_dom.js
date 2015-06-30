@@ -1,43 +1,49 @@
-import Ember from "ember-metal/core"; // Ember.assert
-import { create } from "ember-metal/platform";
-import merge from "ember-metal/merge";
-import EmberError from "ember-metal/error";
+import Ember from 'ember-metal/core';
+import merge from 'ember-metal/merge';
+import EmberError from 'ember-metal/error';
+import { addBeforeObserver } from 'ember-metal/observer';
 
-import hasElement from "ember-views/views/states/has_element";
+import hasElement from 'ember-views/views/states/has_element';
 /**
 @module ember
 @submodule ember-views
 */
 
-var inDOM = create(hasElement);
-
-var View;
+var inDOM = Object.create(hasElement);
 
 merge(inDOM, {
-  enter: function(view) {
-    if (!View) { View = requireModule('ember-views/views/view')["default"]; } // ES6TODO: this sucks. Have to avoid cycles...
-
+  enter(view) {
     // Register the view for event handling. This hash is used by
     // Ember.EventDispatcher to dispatch incoming events.
-    if (!view.isVirtual) {
-      Ember.assert("Attempted to register a view with an id already in use: "+view.elementId, !View.views[view.elementId]);
-      View.views[view.elementId] = view;
+    if (view.tagName !== '') {
+      view._register();
     }
 
-    view.addBeforeObserver('elementId', function() {
-      throw new EmberError("Changing a view's elementId after creation is not allowed");
+    Ember.runInDebug(function() {
+      addBeforeObserver(view, 'elementId', function() {
+        throw new EmberError('Changing a view\'s elementId after creation is not allowed');
+      });
     });
   },
 
-  exit: function(view) {
-    if (!View) { View = requireModule('ember-views/views/view')["default"]; } // ES6TODO: this sucks. Have to avoid cycles...
-
-    if (!this.isVirtual) delete View.views[view.elementId];
+  exit(view) {
+    view._unregister();
   },
 
-  insertElement: function(view, fn) {
-    throw new EmberError("You can't insert an element into the DOM that has already been inserted");
+  appendAttr(view, attrNode) {
+    var childViews = view.childViews;
+
+    if (!childViews.length) { childViews = view.childViews = childViews.slice(); }
+    childViews.push(attrNode);
+
+    attrNode.parentView = view;
+    view.renderer.appendAttrTo(attrNode, view.element, attrNode.attrName);
+
+    view.propertyDidChange('childViews');
+
+    return attrNode;
   }
+
 });
 
 export default inDOM;

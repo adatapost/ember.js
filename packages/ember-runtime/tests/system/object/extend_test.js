@@ -1,16 +1,16 @@
-import {get} from "ember-metal/property_get";
-import EmberObject from "ember-runtime/system/object";
+import {get} from 'ember-metal/property_get';
+import EmberObject from 'ember-runtime/system/object';
 
 QUnit.module('EmberObject.extend');
 
-test('Basic extend', function() {
+QUnit.test('Basic extend', function() {
   var SomeClass = EmberObject.extend({ foo: 'BAR' });
-  ok(SomeClass.isClass, "A class has isClass of true");
+  ok(SomeClass.isClass, 'A class has isClass of true');
   var obj = new SomeClass();
   equal(obj.foo, 'BAR');
 });
 
-test('Sub-subclass', function() {
+QUnit.test('Sub-subclass', function() {
   var SomeClass = EmberObject.extend({ foo: 'BAR' });
   var AnotherClass = SomeClass.extend({ bar: 'FOO' });
   var obj = new AnotherClass();
@@ -18,23 +18,29 @@ test('Sub-subclass', function() {
   equal(obj.bar, 'FOO');
 });
 
-test('Overriding a method several layers deep', function() {
+QUnit.test('Overriding a method several layers deep', function() {
   var SomeClass = EmberObject.extend({
     fooCnt: 0,
-    foo: function() { this.fooCnt++; },
+    foo() { this.fooCnt++; },
 
     barCnt: 0,
-    bar: function() { this.barCnt++; }
+    bar() { this.barCnt++; }
   });
 
   var AnotherClass = SomeClass.extend({
     barCnt: 0,
-    bar: function() { this.barCnt++; this._super(); }
+    bar() {
+      this.barCnt++;
+      this._super.apply(this, arguments);
+    }
   });
 
   var FinalClass = AnotherClass.extend({
     fooCnt: 0,
-    foo: function() { this.fooCnt++; this._super(); }
+    foo() {
+      this.fooCnt++;
+      this._super.apply(this, arguments);
+    }
   });
 
   var obj = new FinalClass();
@@ -44,9 +50,12 @@ test('Overriding a method several layers deep', function() {
   equal(obj.barCnt, 2, 'should invoke both');
 
   // Try overriding on create also
-  obj = FinalClass.createWithMixins({
-    foo: function() { this.fooCnt++; this._super(); }
-  });
+  obj = FinalClass.extend({
+    foo() {
+      this.fooCnt++;
+      this._super.apply(this, arguments);
+    }
+  }).create();
 
   obj.foo();
   obj.bar();
@@ -54,7 +63,7 @@ test('Overriding a method several layers deep', function() {
   equal(obj.barCnt, 2, 'should invoke both');
 });
 
-test('With concatenatedProperties', function(){
+QUnit.test('With concatenatedProperties', function() {
   var SomeClass = EmberObject.extend({ things: 'foo', concatenatedProperties: ['things'] });
   var AnotherClass = SomeClass.extend({ things: 'bar' });
   var YetAnotherClass = SomeClass.extend({ things: 'baz' });
@@ -62,11 +71,11 @@ test('With concatenatedProperties', function(){
   var another = new AnotherClass();
   var yetAnother = new YetAnotherClass();
   deepEqual(some.get('things'), ['foo'], 'base class should have just its value');
-  deepEqual(another.get('things'), ['foo', 'bar'], "subclass should have base class' and it's own");
-  deepEqual(yetAnother.get('things'), ['foo', 'baz'], "subclass should have base class' and it's own");
+  deepEqual(another.get('things'), ['foo', 'bar'], 'subclass should have base class\' and its own');
+  deepEqual(yetAnother.get('things'), ['foo', 'baz'], 'subclass should have base class\' and its own');
 });
 
-test('With concatenatedProperties class properties', function(){
+QUnit.test('With concatenatedProperties class properties', function() {
   var SomeClass = EmberObject.extend();
   SomeClass.reopenClass({
     concatenatedProperties: ['things'],
@@ -80,7 +89,7 @@ test('With concatenatedProperties class properties', function(){
   var another = new AnotherClass();
   var yetAnother = new YetAnotherClass();
   deepEqual(get(some.constructor, 'things'), ['foo'], 'base class should have just its value');
-  deepEqual(get(another.constructor, 'things'), ['foo', 'bar'], "subclass should have base class' and it's own");
-  deepEqual(get(yetAnother.constructor, 'things'), ['foo', 'baz'], "subclass should have base class' and it's own");
+  deepEqual(get(another.constructor, 'things'), ['foo', 'bar'], 'subclass should have base class\' and its own');
+  deepEqual(get(yetAnother.constructor, 'things'), ['foo', 'baz'], 'subclass should have base class\' and its own');
 });
 

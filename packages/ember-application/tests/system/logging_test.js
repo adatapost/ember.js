@@ -1,19 +1,20 @@
 /*globals EmberDev */
 
-import run from "ember-metal/run_loop";
-import Application from "ember-application/system/application";
-import View from "ember-views/views/view";
-import Controller from "ember-runtime/controllers/controller";
-import Route from "ember-routing/system/route";
-import RSVP from "ember-runtime/ext/rsvp";
-import keys from "ember-runtime/keys";
+import Ember from 'ember-metal/core';
+import run from 'ember-metal/run_loop';
+import Application from 'ember-application/system/application';
+import View from 'ember-views/views/view';
+import Controller from 'ember-runtime/controllers/controller';
+import Route from 'ember-routing/system/route';
+import RSVP from 'ember-runtime/ext/rsvp';
+import compile from 'ember-template-compiler/system/compile';
 
-import "ember-routing";
+import 'ember-routing';
 
 var App, logs, originalLogger;
 
-QUnit.module("Ember.Application – logging of generated classes", {
-  setup: function() {
+QUnit.module('Ember.Application – logging of generated classes', {
+  setup() {
     logs = {};
 
     originalLogger = Ember.Logger.info;
@@ -35,14 +36,14 @@ QUnit.module("Ember.Application – logging of generated classes", {
       });
 
       App.Router.map(function() {
-        this.resource("posts");
+        this.route('posts', { resetNamespace: true });
       });
 
       App.deferReadiness();
     });
   },
 
-  teardown: function() {
+  teardown() {
     Ember.Logger.info = originalLogger;
 
     run(App, 'destroy');
@@ -54,11 +55,11 @@ QUnit.module("Ember.Application – logging of generated classes", {
 function visit(path) {
   QUnit.stop();
 
-  var promise = run(function(){
-    return new RSVP.Promise(function(resolve, reject){
+  var promise = run(function() {
+    return new RSVP.Promise(function(resolve, reject) {
       var router = App.__container__.lookup('router:main');
 
-      resolve(router.handleURL(path).then(function(value){
+      resolve(router.handleURL(path).then(function(value) {
         QUnit.start();
         ok(true, 'visited: `' + path + '`');
         return value;
@@ -71,14 +72,14 @@ function visit(path) {
   });
 
   return {
-    then: function(resolve, reject) {
+    then(resolve, reject) {
       run(promise, 'then', resolve, reject);
     }
   };
 }
 
-test("log class generation if logging enabled", function() {
-  if (EmberDev && EmberDev.runningProdBuild){
+QUnit.test('log class generation if logging enabled', function() {
+  if (EmberDev && EmberDev.runningProdBuild) {
     ok(true, 'Logging does not occur in production builds');
     return;
   }
@@ -86,11 +87,11 @@ test("log class generation if logging enabled", function() {
   run(App, 'advanceReadiness');
 
   visit('/posts').then(function() {
-    equal(Ember.keys(logs).length, 6, 'expected logs');
+    equal(Object.keys(logs).length, 6, 'expected logs');
   });
 });
 
-test("do NOT log class generation if logging disabled", function() {
+QUnit.test('do NOT log class generation if logging disabled', function() {
   App.reopen({
     LOG_ACTIVE_GENERATION: false
   });
@@ -98,12 +99,12 @@ test("do NOT log class generation if logging disabled", function() {
   run(App, 'advanceReadiness');
 
   visit('/posts').then(function() {
-    equal(keys(logs).length, 0, 'expected no logs');
+    equal(Object.keys(logs).length, 0, 'expected no logs');
   });
 });
 
-test("actively generated classes get logged", function() {
-  if (EmberDev && EmberDev.runningProdBuild){
+QUnit.test('actively generated classes get logged', function() {
+  if (EmberDev && EmberDev.runningProdBuild) {
     ok(true, 'Logging does not occur in production builds');
     return;
   }
@@ -119,7 +120,7 @@ test("actively generated classes get logged", function() {
   });
 });
 
-test("predefined classes do not get logged", function() {
+QUnit.test('predefined classes do not get logged', function() {
   App.ApplicationController = Controller.extend();
   App.PostsController = Controller.extend();
 
@@ -137,8 +138,8 @@ test("predefined classes do not get logged", function() {
   });
 });
 
-QUnit.module("Ember.Application – logging of view lookups", {
-  setup: function() {
+QUnit.module('Ember.Application – logging of view lookups', {
+  setup() {
     logs = {};
 
     originalLogger = Ember.Logger.info;
@@ -160,14 +161,14 @@ QUnit.module("Ember.Application – logging of view lookups", {
       });
 
       App.Router.map(function() {
-        this.resource("posts");
+        this.route('posts', { resetNamespace: true });
       });
 
       App.deferReadiness();
     });
   },
 
-  teardown: function() {
+  teardown() {
     Ember.Logger.info = originalLogger;
 
     run(App, 'destroy');
@@ -176,13 +177,13 @@ QUnit.module("Ember.Application – logging of view lookups", {
   }
 });
 
-test("log when template and view are missing when flag is active", function() {
-  if (EmberDev && EmberDev.runningProdBuild){
+QUnit.test('log when template and view are missing when flag is active', function() {
+  if (EmberDev && EmberDev.runningProdBuild) {
     ok(true, 'Logging does not occur in production builds');
     return;
   }
 
-  App.register('template:application', function() { return ''; });
+  App.register('template:application', compile('{{outlet}}'));
   run(App, 'advanceReadiness');
 
   visit('/posts').then(function() {
@@ -192,7 +193,7 @@ test("log when template and view are missing when flag is active", function() {
   });
 });
 
-test("do not log when template and view are missing when flag is not true", function() {
+QUnit.test('do not log when template and view are missing when flag is not true', function() {
   App.reopen({
     LOG_VIEW_LOOKUPS: false
   });
@@ -200,29 +201,29 @@ test("do not log when template and view are missing when flag is not true", func
   run(App, 'advanceReadiness');
 
   visit('/posts').then(function() {
-    equal(keys(logs).length, 0, 'expected no logs');
+    equal(Object.keys(logs).length, 0, 'expected no logs');
   });
 });
 
-test("log which view is used with a template", function() {
-  if (EmberDev && EmberDev.runningProdBuild){
+QUnit.test('log which view is used with a template', function() {
+  if (EmberDev && EmberDev.runningProdBuild) {
     ok(true, 'Logging does not occur in production builds');
     return;
   }
 
-  App.register('template:application', function() { return 'Template with default view'; });
-  App.register('template:foo', function() { return 'Template with custom view'; });
-  App.register('view:posts', View.extend({templateName: 'foo'}));
+  App.register('template:application', compile('{{outlet}}'));
+  App.register('template:foo', compile('Template with custom view'));
+  App.register('view:posts', View.extend({ templateName: 'foo' }));
   run(App, 'advanceReadiness');
 
   visit('/posts').then(function() {
-    equal(logs['view:application'], 1, 'expected: Should log use of default view');
+    equal(logs['view:application'], 1, 'toplevel view always get an element');
     equal(logs['view:index'], undefined, 'expected: Should not log when index is not present.');
     equal(logs['view:posts'], 1, 'expected: Rendering posts with PostsView.');
   });
 });
 
-test("do not log which views are used with templates when flag is not true", function() {
+QUnit.test('do not log which views are used with templates when flag is not true', function() {
   App.reopen({
     LOG_VIEW_LOOKUPS: false
   });
@@ -230,6 +231,6 @@ test("do not log which views are used with templates when flag is not true", fun
   run(App, 'advanceReadiness');
 
   visit('/posts').then(function() {
-    equal(keys(logs).length, 0, 'expected no logs');
+    equal(Object.keys(logs).length, 0, 'expected no logs');
   });
 });

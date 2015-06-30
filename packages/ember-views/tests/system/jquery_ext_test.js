@@ -1,13 +1,13 @@
-import run from "ember-metal/run_loop";
-import EventDispatcher from "ember-views/system/event_dispatcher";
-import jQuery from "ember-views/system/jquery";
-import View from "ember-views/views/view";
+import run from 'ember-metal/run_loop';
+import EventDispatcher from 'ember-views/system/event_dispatcher';
+import jQuery from 'ember-views/system/jquery';
+import View from 'ember-views/views/view';
 
 var view, dispatcher;
 
 // Adapted from https://github.com/jquery/jquery/blob/f30f7732e7775b6e417c4c22ced7adb2bf76bf89/test/data/testinit.js
-var canDataTransfer,
-    fireNativeWithDataTransfer;
+var canDataTransfer, fireNativeWithDataTransfer;
+
 if (document.createEvent) {
   canDataTransfer = !!document.createEvent('HTMLEvents').dataTransfer;
   fireNativeWithDataTransfer = function(node, type, dataTransfer) {
@@ -25,15 +25,15 @@ if (document.createEvent) {
   };
 }
 
-QUnit.module("EventDispatcher", {
-  setup: function() {
+QUnit.module('EventDispatcher - jQuery integration', {
+  setup() {
     run(function() {
       dispatcher = EventDispatcher.create();
       dispatcher.setup();
     });
   },
 
-  teardown: function() {
+  teardown() {
     run(function() {
       if (view) { view.destroy(); }
       dispatcher.destroy();
@@ -42,7 +42,7 @@ QUnit.module("EventDispatcher", {
 });
 
 if (canDataTransfer) {
-  test("jQuery.event.fix copies over the dataTransfer property", function() {
+  QUnit.test('jQuery.event.fix copies over the dataTransfer property', function() {
     var originalEvent;
     var receivedEvent;
 
@@ -54,25 +54,20 @@ if (canDataTransfer) {
 
     receivedEvent = jQuery.event.fix(originalEvent);
 
-    ok(receivedEvent !== originalEvent, "attributes are copied to a new event object");
-    equal(receivedEvent.dataTransfer, originalEvent.dataTransfer, "copies dataTransfer property to jQuery event");
+    ok(receivedEvent !== originalEvent, 'attributes are copied to a new event object');
+    equal(receivedEvent.dataTransfer, originalEvent.dataTransfer, 'copies dataTransfer property to jQuery event');
   });
 
-  test("drop handler should receive event with dataTransfer property", function() {
+  QUnit.test('drop handler should receive event with dataTransfer property', function() {
     var receivedEvent;
     var dropCalled = 0;
 
-    view = View.createWithMixins({
-      render: function(buffer) {
-        buffer.push('please drop stuff on me');
-        this._super(buffer);
-      },
-
-      drop: function(evt) {
+    view = View.extend({
+      drop(evt) {
         receivedEvent = evt;
         dropCalled++;
       }
-    });
+    }).create();
 
     run(function() {
       view.append();
@@ -80,7 +75,7 @@ if (canDataTransfer) {
 
     fireNativeWithDataTransfer(view.$().get(0), 'drop', 'success');
 
-    equal(dropCalled, 1, "called drop handler once");
-    equal(receivedEvent.dataTransfer, 'success', "copies dataTransfer property to jQuery event");
+    equal(dropCalled, 1, 'called drop handler once');
+    equal(receivedEvent.dataTransfer, 'success', 'copies dataTransfer property to jQuery event');
   });
 }

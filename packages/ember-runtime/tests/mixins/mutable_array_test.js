@@ -1,7 +1,8 @@
+import Ember from 'ember-metal/core';
+import { computed } from 'ember-metal/computed';
 import MutableArrayTests from 'ember-runtime/tests/suites/mutable_array';
 import MutableArray from 'ember-runtime/mixins/mutable_array';
 import EmberObject from 'ember-runtime/system/object';
-import {computed} from 'ember-metal/computed';
 
 /*
   Implement a basic fake mutable array.  This validates that any non-native
@@ -11,15 +12,15 @@ var TestMutableArray = EmberObject.extend(MutableArray, {
 
   _content: null,
 
-  init: function(ary) {
+  init(ary) {
     this._content = Ember.A(ary || []);
   },
 
-  replace: function(idx, amt, objects) {
+  replace(idx, amt, objects) {
 
-    var args = objects ? objects.slice() : [],
-        removeAmt = amt,
-        addAmt    = args.length;
+    var args = objects ? objects.slice() : [];
+    var removeAmt = amt;
+    var addAmt    = args.length;
 
     this.arrayContentWillChange(idx, removeAmt, addAmt);
 
@@ -30,7 +31,7 @@ var TestMutableArray = EmberObject.extend(MutableArray, {
     return this;
   },
 
-  objectAt: function(idx) {
+  objectAt(idx) {
     return this._content[idx];
   },
 
@@ -38,7 +39,7 @@ var TestMutableArray = EmberObject.extend(MutableArray, {
     return this._content.length;
   }),
 
-  slice: function() {
+  slice() {
     return this._content.slice();
   }
 
@@ -49,17 +50,17 @@ MutableArrayTests.extend({
 
   name: 'Basic Mutable Array',
 
-  newObject: function(ary) {
+  newObject(ary) {
     ary = ary ? ary.slice() : this.newFixture(3);
     return new TestMutableArray(ary);
   },
 
   // allows for testing of the basic enumerable after an internal mutation
-  mutate: function(obj) {
+  mutate(obj) {
     obj.addObject(this.getFixture(1)[0]);
   },
 
-  toArray: function(obj) {
+  toArray(obj) {
     return obj.slice();
   }
 

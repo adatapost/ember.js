@@ -1,20 +1,17 @@
-import Ember from "ember-metal/core";
+import Ember from 'ember-metal/core';
 
-import "ember-testing/initializers"; // to setup initializer
-import "ember-testing/support";      // to handle various edge cases
+import 'ember-testing/initializers'; // to setup initializer
+import 'ember-testing/support';      // to handle various edge cases
 
-import setupForTesting from "ember-testing/setup_for_testing";
-import Test from "ember-testing/test";
-import Adapter from "ember-testing/adapters/adapter";
-import QUnitAdapter from "ember-testing/adapters/qunit";
-import "ember-testing/helpers";      // adds helpers to helpers object in Test
+import setupForTesting from 'ember-testing/setup_for_testing';
+import Test from 'ember-testing/test';
+import Adapter from 'ember-testing/adapters/adapter';
+import QUnitAdapter from 'ember-testing/adapters/qunit';
+import 'ember-testing/helpers';      // adds helpers to helpers object in Test
 
 /**
-  Ember Testing
-
   @module ember
   @submodule ember-testing
-  @requires ember-application
 */
 
 Ember.Test = Test;

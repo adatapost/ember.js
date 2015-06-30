@@ -1,11 +1,11 @@
-import {get} from "ember-metal/property_get";
-import {set} from "ember-metal/property_set";
-import run from "ember-metal/run_loop";
-import {guidFor} from "ember-metal/utils";
+import Ember from 'ember-metal/core';
+import { get } from 'ember-metal/property_get';
+import { set } from 'ember-metal/property_set';
+import run from 'ember-metal/run_loop';
+import { guidFor } from 'ember-metal/utils';
 
-import EmberObject from "ember-runtime/system/object";
-import EmberLocation from "ember-routing/location/api";
-import jQuery from "ember-views/system/jquery";
+import EmberObject from 'ember-runtime/system/object';
+import EmberLocation from 'ember-routing/location/api';
 
 /**
 @module ember
@@ -20,11 +20,12 @@ import jQuery from "ember-views/system/jquery";
   @class HashLocation
   @namespace Ember
   @extends Ember.Object
+  @private
 */
 export default EmberObject.extend({
   implementation: 'hash',
 
-  init: function() {
+  init() {
     set(this, 'location', get(this, '_location') || window.location);
   },
 
@@ -39,13 +40,33 @@ export default EmberObject.extend({
   getHash: EmberLocation._getHash,
 
   /**
-    Returns the current `location.hash`, minus the '#' at the front.
+    Returns the normalized URL, constructed from `location.hash`.
+
+    e.g. `#/foo` => `/foo` as well as `#/foo#bar` => `/foo#bar`.
+
+    By convention, hashed paths must begin with a forward slash, otherwise they
+    are not treated as a path so we can distinguish intent.
 
     @private
     @method getURL
   */
-  getURL: function() {
-    return this.getHash().substr(1);
+  getURL() {
+    var originalPath = this.getHash().substr(1);
+    var outPath = originalPath;
+
+    if (outPath.charAt(0) !== '/') {
+      outPath = '/';
+
+      // Only add the # if the path isn't empty.
+      // We do NOT want `/#` since the ampersand
+      // is only included (conventionally) when
+      // the location.hash has a value
+      if (originalPath) {
+        outPath += `#${originalPath}`;
+      }
+    }
+
+    return outPath;
   },
 
   /**
@@ -57,7 +78,7 @@ export default EmberObject.extend({
     @method setURL
     @param path {String}
   */
-  setURL: function(path) {
+  setURL(path) {
     get(this, 'location').hash = path;
     set(this, 'lastSetURL', path);
   },
@@ -70,8 +91,8 @@ export default EmberObject.extend({
     @method replaceURL
     @param path {String}
   */
-  replaceURL: function(path) {
-    get(this, 'location').replace('#' + path);
+  replaceURL(path) {
+    get(this, 'location').replace(`#${path}`);
     set(this, 'lastSetURL', path);
   },
 
@@ -84,16 +105,15 @@ export default EmberObject.extend({
     @method onUpdateURL
     @param callback {Function}
   */
-  onUpdateURL: function(callback) {
-    var self = this;
+  onUpdateURL(callback) {
     var guid = guidFor(this);
 
-    jQuery(window).on('hashchange.ember-location-'+guid, function() {
-      run(function() {
-        var path = self.getURL();
-        if (get(self, 'lastSetURL') === path) { return; }
+    Ember.$(window).on(`hashchange.ember-location-${guid}`, () => {
+      run(() => {
+        var path = this.getURL();
+        if (get(this, 'lastSetURL') === path) { return; }
 
-        set(self, 'lastSetURL', null);
+        set(this, 'lastSetURL', null);
 
         callback(path);
       });
@@ -111,8 +131,8 @@ export default EmberObject.extend({
     @method formatURL
     @param url {String}
   */
-  formatURL: function(url) {
-    return '#' + url;
+  formatURL(url) {
+    return `#${url}`;
   },
 
   /**
@@ -121,9 +141,9 @@ export default EmberObject.extend({
     @private
     @method willDestroy
   */
-  willDestroy: function() {
+  willDestroy() {
     var guid = guidFor(this);
 
-    jQuery(window).off('hashchange.ember-location-'+guid);
+    Ember.$(window).off(`hashchange.ember-location-${guid}`);
   }
 });

@@ -1,11 +1,17 @@
-import { create } from "ember-metal/platform";
-import { watch, unwatch } from "ember-metal/watching";
+// Remove "use strict"; from transpiled module until
+// https://bugs.webkit.org/show_bug.cgi?id=138038 is fixed
+//
+'REMOVE_USE_STRICT: true';
+
+import {
+  watch,
+  unwatch
+} from 'ember-metal/watching';
 
 /**
-@module ember-metal
+@module ember
+@submodule ember-metal
 */
-
-var o_create = create;
 
 // ..........................................................
 // DEPENDENT KEYS
@@ -31,7 +37,7 @@ function keysForDep(depsMeta, depKey) {
   } else if (!depsMeta.hasOwnProperty(depKey)) {
     // otherwise if the dependency list is inherited from
     // a superclass, clone the hash
-    keys = depsMeta[depKey] = o_create(keys);
+    keys = depsMeta[depKey] = Object.create(keys);
   }
   return keys;
 }
@@ -43,12 +49,15 @@ function metaForDeps(meta) {
 export function addDependentKeys(desc, obj, keyName, meta) {
   // the descriptor has a list of dependent keys, so
   // add all of its dependent keys.
-  var depKeys = desc._dependentKeys, depsMeta, idx, len, depKey, keys;
-  if (!depKeys) return;
+  var depsMeta, idx, len, depKey, keys;
+  var depKeys = desc._dependentKeys;
+  if (!depKeys) {
+    return;
+  }
 
   depsMeta = metaForDeps(meta);
 
-  for(idx = 0, len = depKeys.length; idx < len; idx++) {
+  for (idx = 0, len = depKeys.length; idx < len; idx++) {
     depKey = depKeys[idx];
     // Lookup keys meta for depKey
     keys = keysForDep(depsMeta, depKey);
@@ -62,12 +71,15 @@ export function addDependentKeys(desc, obj, keyName, meta) {
 export function removeDependentKeys(desc, obj, keyName, meta) {
   // the descriptor has a list of dependent keys, so
   // remove all of its dependent keys.
-  var depKeys = desc._dependentKeys, depsMeta, idx, len, depKey, keys;
-  if (!depKeys) return;
+  var depKeys = desc._dependentKeys;
+  var depsMeta, idx, len, depKey, keys;
+  if (!depKeys) {
+    return;
+  }
 
   depsMeta = metaForDeps(meta);
 
-  for(idx = 0, len = depKeys.length; idx < len; idx++) {
+  for (idx = 0, len = depKeys.length; idx < len; idx++) {
     depKey = depKeys[idx];
     // Lookup keys meta for depKey
     keys = keysForDep(depsMeta, depKey);

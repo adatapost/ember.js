@@ -1,38 +1,35 @@
 /*globals EmberDev */
 
-import Ember from "ember-metal/core";
-import { get } from "ember-metal/property_get";
-import { set } from "ember-metal/property_set";
-import { forEach } from "ember-metal/array";
-import run from "ember-metal/run_loop";
-import Application from "ember-application/system/application";
-import DefaultResolver from "ember-application/system/resolver";
-import Router from "ember-routing/system/router";
-import View from "ember-views/views/view";
-import Controller from "ember-runtime/controllers/controller";
-import NoneLocation from "ember-routing/location/none_location";
-import EmberHandlebars from "ember-handlebars";
-import EmberObject from "ember-runtime/system/object";
-import { outletHelper } from "ember-routing-handlebars/helpers/outlet";
-import jQuery from "ember-views/system/jquery";
+import Ember from 'ember-metal/core';
+import run from 'ember-metal/run_loop';
+import Application from 'ember-application/system/application';
+import DefaultResolver from 'ember-application/system/resolver';
+import Router from 'ember-routing/system/router';
+import View from 'ember-views/views/view';
+import Controller from 'ember-runtime/controllers/controller';
+import NoneLocation from 'ember-routing/location/none_location';
+import EmberObject from 'ember-runtime/system/object';
+import EmberRoute from 'ember-routing/system/route';
+import jQuery from 'ember-views/system/jquery';
+import compile from 'ember-template-compiler/system/compile';
 
 var trim = jQuery.trim;
 
-var view, app, application, originalLookup, originalDebug;
+var app, application, originalLookup, originalDebug;
 
-QUnit.module("Ember.Application", {
-  setup: function() {
+QUnit.module('Ember.Application', {
+  setup() {
     originalLookup = Ember.lookup;
     originalDebug = Ember.debug;
 
-    jQuery("#qunit-fixture").html("<div id='one'><div id='one-child'>HI</div></div><div id='two'>HI</div>");
+    jQuery('#qunit-fixture').html('<div id=\'one\'><div id=\'one-child\'>HI</div></div><div id=\'two\'>HI</div>');
     run(function() {
       application = Application.create({ rootElement: '#one', router: null });
     });
   },
 
-  teardown: function() {
-    jQuery("#qunit-fixture").empty();
+  teardown() {
+    jQuery('#qunit-fixture').empty();
     Ember.debug = originalDebug;
 
     Ember.lookup = originalLookup;
@@ -47,16 +44,16 @@ QUnit.module("Ember.Application", {
   }
 });
 
-test("you can make a new application in a non-overlapping element", function() {
+QUnit.test('you can make a new application in a non-overlapping element', function() {
   run(function() {
     app = Application.create({ rootElement: '#two', router: null });
   });
 
   run(app, 'destroy');
-  ok(true, "should not raise");
+  ok(true, 'should not raise');
 });
 
-test("you cannot make a new application that is a parent of an existing application", function() {
+QUnit.test('you cannot make a new application that is a parent of an existing application', function() {
   expectAssertion(function() {
     run(function() {
       Application.create({ rootElement: '#qunit-fixture' });
@@ -64,7 +61,7 @@ test("you cannot make a new application that is a parent of an existing applicat
   });
 });
 
-test("you cannot make a new application that is a descendent of an existing application", function() {
+QUnit.test('you cannot make a new application that is a descendent of an existing application', function() {
   expectAssertion(function() {
     run(function() {
       Application.create({ rootElement: '#one-child' });
@@ -72,7 +69,7 @@ test("you cannot make a new application that is a descendent of an existing appl
   });
 });
 
-test("you cannot make a new application that is a duplicate of an existing application", function() {
+QUnit.test('you cannot make a new application that is a duplicate of an existing application', function() {
   expectAssertion(function() {
     run(function() {
       Application.create({ rootElement: '#one' });
@@ -80,7 +77,7 @@ test("you cannot make a new application that is a duplicate of an existing appli
   });
 });
 
-test("you cannot make two default applications without a rootElement error", function() {
+QUnit.test('you cannot make two default applications without a rootElement error', function() {
   expectAssertion(function() {
     run(function() {
       Application.create({ router: false });
@@ -88,8 +85,8 @@ test("you cannot make two default applications without a rootElement error", fun
   });
 });
 
-test("acts like a namespace", function() {
-  var lookup = Ember.lookup = {}, app;
+QUnit.test('acts like a namespace', function() {
+  var lookup = Ember.lookup = {};
 
   run(function() {
     app = lookup.TestApp = Application.create({ rootElement: '#two', router: false });
@@ -97,11 +94,11 @@ test("acts like a namespace", function() {
 
   Ember.BOOTED = false;
   app.Foo = EmberObject.extend();
-  equal(app.Foo.toString(), "TestApp.Foo", "Classes pick up their parent namespace");
+  equal(app.Foo.toString(), 'TestApp.Foo', 'Classes pick up their parent namespace');
 });
 
-QUnit.module("Ember.Application initialization", {
-  teardown: function() {
+QUnit.module('Ember.Application initialization', {
+  teardown() {
     if (app) {
       run(app, 'destroy');
     }
@@ -109,7 +106,7 @@ QUnit.module("Ember.Application initialization", {
   }
 });
 
-test('initialized application go to initial route', function() {
+QUnit.test('initialized application go to initial route', function() {
   run(function() {
     app = Application.create({
       rootElement: '#qunit-fixture'
@@ -120,18 +117,52 @@ test('initialized application go to initial route', function() {
     });
 
     app.register('template:application',
-      EmberHandlebars.compile("{{outlet}}")
+      compile('{{outlet}}')
     );
 
-    Ember.TEMPLATES.index = EmberHandlebars.compile(
-      "<h1>Hi from index</h1>"
+    Ember.TEMPLATES.index = compile(
+      '<h1>Hi from index</h1>'
     );
   });
 
-  equal(jQuery('#qunit-fixture h1').text(), "Hi from index");
+  equal(jQuery('#qunit-fixture h1').text(), 'Hi from index');
 });
 
-test("initialize application via initialize call", function() {
+QUnit.test('ready hook is called before routing begins', function() {
+  expect(2);
+
+  run(function() {
+    function registerRoute(application, name, callback) {
+      var route = EmberRoute.extend({
+        activate: callback
+      });
+
+      application.register('route:' + name, route);
+    }
+
+    var MyApplication = Application.extend({
+      ready() {
+        registerRoute(this, 'index', function() {
+          ok(true, 'last-minite route is activated');
+        });
+      }
+    });
+
+    app = MyApplication.create({
+      rootElement: '#qunit-fixture'
+    });
+
+    app.Router.reopen({
+      location: 'none'
+    });
+
+    registerRoute(app, 'application', function() {
+      ok(true, 'normal route is activated');
+    });
+  });
+});
+
+QUnit.test('initialize application via initialize call', function() {
   run(function() {
     app = Application.create({
       rootElement: '#qunit-fixture'
@@ -142,18 +173,18 @@ test("initialize application via initialize call", function() {
     });
 
     app.ApplicationView = View.extend({
-      template: function() { return "<h1>Hello!</h1>"; }
+      template: compile('<h1>Hello!</h1>')
     });
   });
 
   // This is not a public way to access the container; we just
   // need to make some assertions about the created router
   var router = app.__container__.lookup('router:main');
-  equal(router instanceof Router, true, "Router was set from initialize call");
-  equal(router.location instanceof NoneLocation, true, "Location was set from location implementation name");
+  equal(router instanceof Router, true, 'Router was set from initialize call');
+  equal(router.location instanceof NoneLocation, true, 'Location was set from location implementation name');
 });
 
-test("initialize application with stateManager via initialize call from Router class", function() {
+QUnit.test('initialize application with stateManager via initialize call from Router class', function() {
   run(function() {
     app = Application.create({
       rootElement: '#qunit-fixture'
@@ -163,26 +194,22 @@ test("initialize application with stateManager via initialize call from Router c
       location: 'none'
     });
 
-    app.register('template:application', function() {
-      return "<h1>Hello!</h1>";
-    });
+    app.register('template:application', compile('<h1>Hello!</h1>'));
   });
 
   var router = app.__container__.lookup('router:main');
-  equal(router instanceof Router, true, "Router was set from initialize call");
-  equal(jQuery("#qunit-fixture h1").text(), "Hello!");
+  equal(router instanceof Router, true, 'Router was set from initialize call');
+  equal(jQuery('#qunit-fixture h1').text(), 'Hello!');
 });
 
-test("ApplicationView is inserted into the page", function() {
+QUnit.test('ApplicationView is inserted into the page', function() {
   run(function() {
     app = Application.create({
       rootElement: '#qunit-fixture'
     });
 
     app.ApplicationView = View.extend({
-      render: function(buffer) {
-        buffer.push("<h1>Hello!</h1>");
-      }
+      template: compile('<h1>Hello!</h1>')
     });
 
     app.ApplicationController = Controller.extend();
@@ -192,10 +219,10 @@ test("ApplicationView is inserted into the page", function() {
     });
   });
 
-  equal(jQuery("#qunit-fixture h1").text(), "Hello!");
+  equal(jQuery('#qunit-fixture h1').text(), 'Hello!');
 });
 
-test("Minimal Application initialized with just an application template", function() {
+QUnit.test('Minimal Application initialized with just an application template', function() {
   jQuery('#qunit-fixture').html('<script type="text/x-handlebars">Hello World</script>');
   run(function () {
     app = Application.create({
@@ -206,8 +233,8 @@ test("Minimal Application initialized with just an application template", functi
   equal(trim(jQuery('#qunit-fixture').text()), 'Hello World');
 });
 
-test('enable log of libraries with an ENV var', function() {
-  if (EmberDev && EmberDev.runningProdBuild){
+QUnit.test('enable log of libraries with an ENV var', function() {
+  if (EmberDev && EmberDev.runningProdBuild) {
     ok(true, 'Logging does not occur in production builds');
     return;
   }
@@ -221,7 +248,7 @@ test('enable log of libraries with an ENV var', function() {
     messages.push(message);
   };
 
-  Ember.libraries.register("my-lib", "2.0.0a");
+  Ember.libraries.register('my-lib', '2.0.0a');
 
   run(function() {
     app = Application.create({
@@ -229,17 +256,16 @@ test('enable log of libraries with an ENV var', function() {
     });
   });
 
-  equal(messages[1], "Ember      : " + Ember.VERSION);
-  equal(messages[2], "Handlebars : " + EmberHandlebars.VERSION);
-  equal(messages[3], "jQuery     : " + jQuery().jquery);
-  equal(messages[4], "my-lib     : " + "2.0.0a");
+  equal(messages[1], 'Ember  : ' + Ember.VERSION);
+  equal(messages[2], 'jQuery : ' + jQuery().jquery);
+  equal(messages[3], 'my-lib : ' + '2.0.0a');
 
-  Ember.libraries.deRegister("my-lib");
+  Ember.libraries.deRegister('my-lib');
   Ember.LOG_VERSION = false;
   Ember.debug = debug;
 });
 
-test('disable log version of libraries with an ENV var', function() {
+QUnit.test('disable log version of libraries with an ENV var', function() {
   var logged = false;
 
   Ember.LOG_VERSION = false;
@@ -248,7 +274,7 @@ test('disable log version of libraries with an ENV var', function() {
     logged = true;
   };
 
-  jQuery("#qunit-fixture").empty();
+  jQuery('#qunit-fixture').empty();
 
   run(function() {
     app = Application.create({
@@ -263,12 +289,12 @@ test('disable log version of libraries with an ENV var', function() {
   ok(!logged, 'library version logging skipped');
 });
 
-test("can resolve custom router", function(){
+QUnit.test('can resolve custom router', function() {
   var CustomRouter = Router.extend();
 
   var CustomResolver = DefaultResolver.extend({
-    resolveOther: function(parsedName){
-      if (parsedName.type === "router") {
+    resolveMain(parsedName) {
+      if (parsedName.type === 'router') {
         return CustomRouter;
       } else {
         return this._super(parsedName);
@@ -276,7 +302,7 @@ test("can resolve custom router", function(){
     }
   });
 
-  app = run(function(){
+  app = run(function() {
     return Application.create({
       Resolver: CustomResolver
     });
@@ -285,7 +311,19 @@ test("can resolve custom router", function(){
   ok(app.__container__.lookup('router:main') instanceof CustomRouter, 'application resolved the correct router');
 });
 
-test("throws helpful error if `app.then` is used", function() {
+QUnit.test('can specify custom router', function() {
+  var CustomRouter = Router.extend();
+
+  app = run(function() {
+    return Application.create({
+      Router: CustomRouter
+    });
+  });
+
+  ok(app.__container__.lookup('router:main') instanceof CustomRouter, 'application resolved the correct router');
+});
+
+QUnit.test('throws helpful error if `app.then` is used', function() {
   run(function() {
     app = Application.create({
       rootElement: '#qunit-fixture'
@@ -293,6 +331,16 @@ test("throws helpful error if `app.then` is used", function() {
   });
 
   expectDeprecation(function() {
-    run(app, 'then', Ember.K);
+    run(app, 'then', function() { return this; });
   }, /Do not use `.then` on an instance of Ember.Application.  Please use the `.ready` hook instead./);
+});
+
+QUnit.test('registers controls onto to container', function() {
+  run(function() {
+    app = Application.create({
+      rootElement: '#qunit-fixture'
+    });
+  });
+
+  ok(app.__container__.lookup('view:select'), 'Select control is registered into views');
 });

@@ -1,5 +1,4 @@
 import { Mixin } from 'ember-metal/mixin';
-import { create } from 'ember-metal/platform';
 import { meta } from 'ember-metal/utils';
 
 import {
@@ -9,17 +8,14 @@ import {
   suspendListener,
   suspendListeners,
   sendEvent,
-  hasListeners,
-  watchedEvents,
-  listenersFor,
-  actionsDiff,
-  actionsUnion
-} from "ember-metal/events";
+  hasListeners
+} from 'ember-metal/events';
 
 QUnit.module('system/props/events_test');
 
-test('listener should receive event - removing should remove', function() {
-  var obj = {}, count = 0;
+QUnit.test('listener should receive event - removing should remove', function() {
+  var obj = {};
+  var count = 0;
   var F = function() { count++; };
 
   addListener(obj, 'event!', F);
@@ -35,13 +31,14 @@ test('listener should receive event - removing should remove', function() {
   equal(count, 0, 'received event');
 });
 
-test('listeners should be inherited', function() {
-  var obj = {}, count = 0;
+QUnit.test('listeners should be inherited', function() {
+  var obj = {};
+  var count = 0;
   var F = function() { count++; };
 
   addListener(obj, 'event!', F);
 
-  var obj2 = create(obj);
+  var obj2 = Object.create(obj);
 
   equal(count, 0, 'nothing yet');
 
@@ -60,9 +57,10 @@ test('listeners should be inherited', function() {
 });
 
 
-test('adding a listener more than once should only invoke once', function() {
+QUnit.test('adding a listener more than once should only invoke once', function() {
 
-  var obj = {}, count = 0;
+  var obj = {};
+  var count = 0;
   var F = function() { count++; };
   addListener(obj, 'event!', F);
   addListener(obj, 'event!', F);
@@ -71,12 +69,13 @@ test('adding a listener more than once should only invoke once', function() {
   equal(count, 1, 'should only invoke once');
 });
 
-test('adding a listener with a target should invoke with target', function() {
-  var obj = {}, target;
+QUnit.test('adding a listener with a target should invoke with target', function() {
+  var obj = {};
+  var target;
 
   target = {
     count: 0,
-    method: function() { this.count++; }
+    method() { this.count++; }
   };
 
   addListener(obj, 'event!', target, target.method);
@@ -84,29 +83,30 @@ test('adding a listener with a target should invoke with target', function() {
   equal(target.count, 1, 'should invoke');
 });
 
-test('suspending a listener should not invoke during callback', function() {
-  var obj = {}, target, otherTarget;
+QUnit.test('suspending a listener should not invoke during callback', function() {
+  var obj = {};
+  var target, otherTarget;
 
   target = {
     count: 0,
-    method: function() { this.count++; }
+    method() { this.count++; }
   };
 
   otherTarget = {
     count: 0,
-    method: function() { this.count++; }
+    method() { this.count++; }
   };
 
   addListener(obj, 'event!', target, target.method);
   addListener(obj, 'event!', otherTarget, otherTarget.method);
 
   function callback() {
-      /*jshint validthis:true */
-      equal(this, target);
+    /*jshint validthis:true */
+    equal(this, target);
 
-      sendEvent(obj, 'event!');
+    sendEvent(obj, 'event!');
 
-      return 'result';
+    return 'result';
   }
 
   sendEvent(obj, 'event!');
@@ -119,12 +119,13 @@ test('suspending a listener should not invoke during callback', function() {
   equal(otherTarget.count, 3, 'should invoke');
 });
 
-test('adding a listener with string method should lookup method on event delivery', function() {
-  var obj = {}, target;
+QUnit.test('adding a listener with string method should lookup method on event delivery', function() {
+  var obj = {};
+  var target;
 
   target = {
     count: 0,
-    method: function() {}
+    method() {}
   };
 
   addListener(obj, 'event!', target, 'method');
@@ -136,9 +137,10 @@ test('adding a listener with string method should lookup method on event deliver
   equal(target.count, 1, 'should invoke now');
 });
 
-test('calling sendEvent with extra params should be passed to listeners', function() {
+QUnit.test('calling sendEvent with extra params should be passed to listeners', function() {
 
-  var obj = {}, params = null;
+  var obj = {};
+  var params = null;
   addListener(obj, 'event!', function() {
     params = Array.prototype.slice.call(arguments);
   });
@@ -147,9 +149,9 @@ test('calling sendEvent with extra params should be passed to listeners', functi
   deepEqual(params, ['foo', 'bar'], 'params should be saved');
 });
 
-test('implementing sendEvent on object should invoke', function() {
+QUnit.test('implementing sendEvent on object should invoke', function() {
   var obj = {
-    sendEvent: function(eventName, params) {
+    sendEvent(eventName, params) {
       equal(eventName, 'event!', 'eventName');
       deepEqual(params, ['foo', 'bar']);
       this.count++;
@@ -164,9 +166,11 @@ test('implementing sendEvent on object should invoke', function() {
   equal(obj.count, 2, 'should have invoked method & listener');
 });
 
-test('hasListeners tells you if there are listeners for a given event', function() {
+QUnit.test('hasListeners tells you if there are listeners for a given event', function() {
 
-  var obj = {}, F = function() {}, F2 = function() {};
+  var obj = {};
+  var F = function() {};
+  var F2 = function() {};
 
   equal(hasListeners(obj, 'event!'), false, 'no listeners at first');
 
@@ -185,8 +189,10 @@ test('hasListeners tells you if there are listeners for a given event', function
   equal(hasListeners(obj, 'event!'), true, 'has listeners');
 });
 
-test('calling removeListener without method should remove all listeners', function() {
-  var obj = {}, F = function() {}, F2 = function() {};
+QUnit.test('calling removeListener without method should remove all listeners', function() {
+  var obj = {};
+  var F = function() {};
+  var F2 = function() {};
 
   equal(hasListeners(obj, 'event!'), false, 'no listeners at first');
 
@@ -200,12 +206,13 @@ test('calling removeListener without method should remove all listeners', functi
   equal(hasListeners(obj, 'event!'), false, 'has no more listeners');
 });
 
-test('while suspended, it should not be possible to add a duplicate listener', function() {
-  var obj = {}, target;
+QUnit.test('while suspended, it should not be possible to add a duplicate listener', function() {
+  var obj = {};
+  var target;
 
   target = {
     count: 0,
-    method: function() { this.count++; }
+    method() { this.count++; }
   };
 
   addListener(obj, 'event!', target, target.method);
@@ -219,7 +226,7 @@ test('while suspended, it should not be possible to add a duplicate listener', f
   suspendListener(obj, 'event!', target, target.method, callback);
 
   equal(target.count, 1, 'should invoke');
-  equal(meta(obj).listeners['event!'].length, 3, "a duplicate listener wasn't added");
+  equal(meta(obj).listeners['event!'].length, 3, 'a duplicate listener wasn\'t added');
 
   // now test suspendListeners...
 
@@ -228,10 +235,10 @@ test('while suspended, it should not be possible to add a duplicate listener', f
   suspendListeners(obj, ['event!'], target, target.method, callback);
 
   equal(target.count, 2, 'should have invoked again');
-  equal(meta(obj).listeners['event!'].length, 3, "a duplicate listener wasn't added");
+  equal(meta(obj).listeners['event!'].length, 3, 'a duplicate listener wasn\'t added');
 });
 
-test('a listener can be added as part of a mixin', function() {
+QUnit.test('a listener can be added as part of a mixin', function() {
   var triggered = 0;
   var MyMixin = Mixin.create({
     foo1: on('bar', function() {
@@ -250,7 +257,7 @@ test('a listener can be added as part of a mixin', function() {
   equal(triggered, 2, 'should invoke listeners');
 });
 
-test('a listener added as part of a mixin may be overridden', function() {
+QUnit.test('a listener added as part of a mixin may be overridden', function() {
 
   var triggered = 0;
   var FirstMixin = Mixin.create({

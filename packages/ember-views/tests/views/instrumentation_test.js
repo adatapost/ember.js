@@ -1,33 +1,29 @@
 import {
   subscribe,
   reset as instrumentationReset
-} from "ember-metal/instrumentation";
-import run from "ember-metal/run_loop";
-import { guidFor } from "ember-metal/utils";
-import { computed } from "ember-metal/computed";
-import EmberView from "ember-views/views/view";
+} from 'ember-metal/instrumentation';
+import run from 'ember-metal/run_loop';
+import EmberView from 'ember-views/views/view';
 
 var view, beforeCalls, afterCalls;
 
 function confirmPayload(payload, view) {
-  var objectId = guidFor(view);
-
-  equal(payload.object, view.toString(), 'payload object equals view.toString()');
-  equal(payload.containerKey, view._debugContainerKey, 'payload contains the containerKey');
-  equal(payload.view, view, 'payload contains the view itself');
+  equal(payload && payload.object, view.toString(), 'payload object equals view.toString()');
+  equal(payload && payload.containerKey, view._debugContainerKey, 'payload contains the containerKey');
+  equal(payload && payload.view, view, 'payload contains the view itself');
 }
 
-QUnit.module("EmberView#instrumentation", {
-  setup: function () {
+QUnit.module('EmberView#instrumentation', {
+  setup() {
     beforeCalls = [];
     afterCalls  = [];
 
-    subscribe("render", {
-      before: function(name, timestamp, payload) {
+    subscribe('render', {
+      before(name, timestamp, payload) {
         beforeCalls.push(payload);
       },
 
-      after: function(name, timestamp, payload) {
+      after(name, timestamp, payload) {
         afterCalls.push(payload);
       }
     });
@@ -38,7 +34,7 @@ QUnit.module("EmberView#instrumentation", {
     });
   },
 
-  teardown: function() {
+  teardown() {
     if (view) {
       run(view, 'destroy');
     }
@@ -47,7 +43,7 @@ QUnit.module("EmberView#instrumentation", {
   }
 });
 
-test("generates the proper instrumentation details when called directly", function() {
+QUnit.test('generates the proper instrumentation details when called directly', function() {
   var payload = {};
 
   view.instrumentDetails(payload);
@@ -55,7 +51,7 @@ test("generates the proper instrumentation details when called directly", functi
   confirmPayload(payload, view);
 });
 
-test("should add ember-view to views", function() {
+QUnit.test('should add ember-view to views', function() {
   run(view, 'createElement');
 
   confirmPayload(beforeCalls[0], view);

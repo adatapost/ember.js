@@ -4,51 +4,62 @@
 */
 
 import Ember from 'ember-metal/core'; // Ember.assert
-import merge from 'ember-metal/merge';
 import { get } from 'ember-metal/property_get';
-import { set } from 'ember-metal/property_set';
-import {
-  isArray,
-  guidFor
-} from 'ember-metal/utils';
 import EmberError from 'ember-metal/error';
-import {
-  forEach
-} from 'ember-metal/enumerable_utils';
-import run from 'ember-metal/run_loop';
-import { addObserver } from 'ember-metal/observer';
-import { arrayComputed } from 'ember-runtime/computed/array_computed';
-import { reduceComputed } from 'ember-runtime/computed/reduce_computed';
-import ObjectProxy from 'ember-runtime/system/object_proxy';
-import SubArray from 'ember-runtime/system/subarray';
-import keys from 'ember-runtime/keys';
+import { ComputedProperty, computed } from 'ember-metal/computed';
+import { addObserver, removeObserver } from 'ember-metal/observer';
 import compare from 'ember-runtime/compare';
+import { isArray } from 'ember-runtime/utils';
 
-var a_slice = [].slice;
+function reduceMacro(dependentKey, callback, initialValue) {
+  return computed(`${dependentKey}.[]`, function() {
+    return get(this, dependentKey).reduce(callback, initialValue);
+  }).readOnly();
+}
+
+function arrayMacro(dependentKey, callback) {
+  // This is a bit ugly
+  var propertyName;
+  if (/@each/.test(dependentKey)) {
+    propertyName = dependentKey.replace(/\.@each.*$/, '');
+  } else {
+    propertyName = dependentKey;
+    dependentKey += '.[]';
+  }
+
+  return computed(dependentKey, function() {
+    var value = get(this, propertyName);
+    if (isArray(value)) {
+      return Ember.A(callback(value));
+    } else {
+      return Ember.A();
+    }
+  }).readOnly();
+}
+
+function multiArrayMacro(dependentKeys, callback) {
+  var args = dependentKeys.map(key => `${key}.[]`);
+
+  args.push(function() {
+    return Ember.A(callback.call(this, dependentKeys));
+  });
+
+  return computed.apply(this, args).readOnly();
+}
 
 /**
- A computed property that returns the sum of the value
- in the dependent array.
+  A computed property that returns the sum of the value
+  in the dependent array.
 
- @method computed.sum
- @for Ember
- @param {String} dependentKey
- @return {Ember.ComputedProperty} computes the sum of all values in the dependentKey's array
- @since 1.4.0
+  @method sum
+  @for Ember.computed
+  @param {String} dependentKey
+  @return {Ember.ComputedProperty} computes the sum of all values in the dependentKey's array
+  @since 1.4.0
+  @public
 */
-
-export function sum(dependentKey){
-  return reduceComputed(dependentKey, {
-    initialValue: 0,
-
-    addedItem: function(accumulatedValue, item, changeMeta, instanceMeta){
-      return accumulatedValue + item;
-    },
-
-    removedItem: function(accumulatedValue, item, changeMeta, instanceMeta){
-      return accumulatedValue - item;
-    }
-  });
+export function sum(dependentKey) {
+  return reduceMacro(dependentKey, (sum, item) => sum + item, 0);
 }
 
 /**
@@ -79,25 +90,14 @@ export function sum(dependentKey){
   lordByron.get('maxChildAge'); // 8
   ```
 
-  @method computed.max
-  @for Ember
+  @method max
+  @for Ember.computed
   @param {String} dependentKey
   @return {Ember.ComputedProperty} computes the largest value in the dependentKey's array
+  @public
 */
 export function max(dependentKey) {
-  return reduceComputed(dependentKey, {
-    initialValue: -Infinity,
-
-    addedItem: function (accumulatedValue, item, changeMeta, instanceMeta) {
-      return Math.max(accumulatedValue, item);
-    },
-
-    removedItem: function (accumulatedValue, item, changeMeta, instanceMeta) {
-      if (item < accumulatedValue) {
-        return accumulatedValue;
-      }
-    }
-  });
+  return reduceMacro(dependentKey, (max, item) => Math.max(max, item), -Infinity);
 }
 
 /**
@@ -128,25 +128,14 @@ export function max(dependentKey) {
   lordByron.get('minChildAge'); // 5
   ```
 
-  @method computed.min
-  @for Ember
+  @method min
+  @for Ember.computed
   @param {String} dependentKey
   @return {Ember.ComputedProperty} computes the smallest value in the dependentKey's array
+  @public
 */
 export function min(dependentKey) {
-  return reduceComputed(dependentKey, {
-    initialValue: Infinity,
-
-    addedItem: function (accumulatedValue, item, changeMeta, instanceMeta) {
-      return Math.min(accumulatedValue, item);
-    },
-
-    removedItem: function (accumulatedValue, item, changeMeta, instanceMeta) {
-      if (item > accumulatedValue) {
-        return accumulatedValue;
-      }
-    }
-  });
+  return reduceMacro(dependentKey, (min, item) => Math.min(min, item), Infinity);
 }
 
 /**
@@ -154,16 +143,17 @@ export function min(dependentKey) {
 
   The callback method you provide should have the following signature.
   `item` is the current item in the iteration.
+  `index` is the integer index of the current item in the iteration.
 
   ```javascript
-  function(item);
+  function(item, index);
   ```
 
   Example
 
   ```javascript
   var Hamster = Ember.Object.extend({
-    excitingChores: Ember.computed.map('chores', function(chore) {
+    excitingChores: Ember.computed.map('chores', function(chore, index) {
       return chore.toUpperCase() + '!';
     })
   });
@@ -175,26 +165,15 @@ export function min(dependentKey) {
   hamster.get('excitingChores'); // ['CLEAN!', 'WRITE MORE UNIT TESTS!']
   ```
 
-  @method computed.map
-  @for Ember
+  @method map
+  @for Ember.computed
   @param {String} dependentKey
   @param {Function} callback
   @return {Ember.ComputedProperty} an array mapped via the callback
+  @public
 */
 export function map(dependentKey, callback) {
-  var options = {
-    addedItem: function(array, item, changeMeta, instanceMeta) {
-      var mapped = callback.call(this, item);
-      array.insertAt(changeMeta.index, mapped);
-      return array;
-    },
-    removedItem: function(array, item, changeMeta, instanceMeta) {
-      array.removeAt(changeMeta.index, 1);
-      return array;
-    }
-  };
-
-  return arrayComputed(dependentKey, options);
+  return arrayMacro(dependentKey, value => value.map(callback));
 }
 
 /**
@@ -220,39 +199,48 @@ export function map(dependentKey, callback) {
   lordByron.get('childAges'); // [7, 5, 8]
   ```
 
-  @method computed.mapBy
-  @for Ember
+  @method mapBy
+  @for Ember.computed
   @param {String} dependentKey
   @param {String} propertyKey
   @return {Ember.ComputedProperty} an array mapped to the specified key
+  @public
 */
-export function mapBy (dependentKey, propertyKey) {
-  var callback = function(item) { return get(item, propertyKey); };
-  return map(dependentKey + '.@each.' + propertyKey, callback);
+export function mapBy(dependentKey, propertyKey) {
+  Ember.assert('Ember.computed.mapBy expects a property string for its second argument, ' +
+    'perhaps you meant to use "map"', typeof propertyKey === 'string');
+
+  return map(`${dependentKey}.@each.${propertyKey}`, item => get(item, propertyKey));
 }
 
 /**
-  @method computed.mapProperty
-  @for Ember
+  @method mapProperty
+  @for Ember.computed
   @deprecated Use `Ember.computed.mapBy` instead
   @param dependentKey
   @param propertyKey
+  @public
 */
-export var mapProperty = mapBy;
+export function mapProperty() {
+  Ember.deprecate('Ember.computed.mapProperty is deprecated. Please use Ember.computed.mapBy.');
+  return mapBy.apply(this, arguments);
+}
 
 /**
   Filters the array by the callback.
 
   The callback method you provide should have the following signature.
   `item` is the current item in the iteration.
+  `index` is the integer index of the current item in the iteration.
+  `array` is the dependant array itself.
 
   ```javascript
-  function(item);
+  function(item, index, array);
   ```
 
   ```javascript
   var Hamster = Ember.Object.extend({
-    remainingChores: Ember.computed.filter('chores', function(chore) {
+    remainingChores: Ember.computed.filter('chores', function(chore, index, array) {
       return !chore.done;
     })
   });
@@ -268,41 +256,15 @@ export var mapProperty = mapBy;
   hamster.get('remainingChores'); // [{name: 'write more unit tests', done: false}]
   ```
 
-  @method computed.filter
-  @for Ember
+  @method filter
+  @for Ember.computed
   @param {String} dependentKey
   @param {Function} callback
   @return {Ember.ComputedProperty} the filtered array
+  @public
 */
 export function filter(dependentKey, callback) {
-  var options = {
-    initialize: function (array, changeMeta, instanceMeta) {
-      instanceMeta.filteredArrayIndexes = new SubArray();
-    },
-
-    addedItem: function (array, item, changeMeta, instanceMeta) {
-      var match = !!callback.call(this, item);
-      var filterIndex = instanceMeta.filteredArrayIndexes.addItem(changeMeta.index, match);
-
-      if (match) {
-        array.insertAt(filterIndex, item);
-      }
-
-      return array;
-    },
-
-    removedItem: function(array, item, changeMeta, instanceMeta) {
-      var filterIndex = instanceMeta.filteredArrayIndexes.removeItem(changeMeta.index);
-
-      if (filterIndex > -1) {
-        array.removeAt(filterIndex);
-      }
-
-      return array;
-    }
-  };
-
-  return arrayComputed(dependentKey, options);
+  return arrayMacro(dependentKey, value => value.filter(callback));
 }
 
 /**
@@ -324,14 +286,15 @@ export function filter(dependentKey, callback) {
   hamster.get('remainingChores'); // [{ name: 'write more unit tests', done: false }]
   ```
 
-  @method computed.filterBy
-  @for Ember
+  @method filterBy
+  @for Ember.computed
   @param {String} dependentKey
   @param {String} propertyKey
   @param {*} value
   @return {Ember.ComputedProperty} the filtered array
+  @public
 */
-export function filterBy (dependentKey, propertyKey, value) {
+export function filterBy(dependentKey, propertyKey, value) {
   var callback;
 
   if (arguments.length === 2) {
@@ -344,18 +307,22 @@ export function filterBy (dependentKey, propertyKey, value) {
     };
   }
 
-  return filter(dependentKey + '.@each.' + propertyKey, callback);
+  return filter(`${dependentKey}.@each.${propertyKey}`, callback);
 }
 
 /**
-  @method computed.filterProperty
-  @for Ember
+  @method filterProperty
+  @for Ember.computed
   @param dependentKey
   @param propertyKey
   @param value
   @deprecated Use `Ember.computed.filterBy` instead
+  @public
 */
-export var filterProperty = filterBy;
+export function filterProperty() {
+  Ember.deprecate('Ember.computed.filterProperty is deprecated. Please use Ember.computed.filterBy.');
+  return filterBy.apply(this, arguments);
+}
 
 /**
   A computed property which returns a new array with all the unique
@@ -380,56 +347,41 @@ export var filterProperty = filterBy;
   hamster.get('uniqueFruits'); // ['banana', 'grape', 'kale']
   ```
 
-  @method computed.uniq
-  @for Ember
+  @method uniq
+  @for Ember.computed
   @param {String} propertyKey*
   @return {Ember.ComputedProperty} computes a new array with all the
   unique elements from the dependent array
+  @public
 */
-export function uniq() {
-  var args = a_slice.call(arguments);
+export function uniq(...args) {
+  return multiArrayMacro(args, function(dependentKeys) {
+    var uniq = Ember.A();
 
-  args.push({
-    initialize: function(array, changeMeta, instanceMeta) {
-      instanceMeta.itemCounts = {};
-    },
-
-    addedItem: function(array, item, changeMeta, instanceMeta) {
-      var guid = guidFor(item);
-
-      if (!instanceMeta.itemCounts[guid]) {
-        instanceMeta.itemCounts[guid] = 1;
-      } else {
-        ++instanceMeta.itemCounts[guid];
+    dependentKeys.forEach(dependentKey => {
+      var value = get(this, dependentKey);
+      if (isArray(value)) {
+        value.forEach(item => {
+          if (uniq.indexOf(item) === -1) {
+            uniq.push(item);
+          }
+        });
       }
+    });
 
-      array.addObject(item);
-      return array;
-    },
-
-    removedItem: function(array, item, _, instanceMeta) {
-      var guid = guidFor(item);
-      var itemCounts = instanceMeta.itemCounts;
-
-      if (--itemCounts[guid] === 0) {
-        array.removeObject(item);
-      }
-
-      return array;
-    }
+    return uniq;
   });
-
-  return arrayComputed.apply(null, args);
 }
 
 /**
   Alias for [Ember.computed.uniq](/api/#method_computed_uniq).
 
-  @method computed.union
-  @for Ember
+  @method union
+  @for Ember.computed
   @param {String} propertyKey*
   @return {Ember.ComputedProperty} computes a new array with all the
   unique elements from the dependent array
+  @public
 */
 export var union = uniq;
 
@@ -440,87 +392,53 @@ export var union = uniq;
   Example
 
   ```javascript
-  var obj = Ember.Object.createWithMixins({
-    adaFriends: ['Charles Babbage', 'John Hobhouse', 'William King', 'Mary Somerville'],
-    charlesFriends: ['William King', 'Mary Somerville', 'Ada Lovelace', 'George Peacock'],
+  var obj = Ember.Object.extend({
     friendsInCommon: Ember.computed.intersect('adaFriends', 'charlesFriends')
+  }).create({
+    adaFriends: ['Charles Babbage', 'John Hobhouse', 'William King', 'Mary Somerville'],
+    charlesFriends: ['William King', 'Mary Somerville', 'Ada Lovelace', 'George Peacock']
   });
 
   obj.get('friendsInCommon'); // ['William King', 'Mary Somerville']
   ```
 
-  @method computed.intersect
-  @for Ember
+  @method intersect
+  @for Ember.computed
   @param {String} propertyKey*
   @return {Ember.ComputedProperty} computes a new array with all the
   duplicated elements from the dependent arrays
+  @public
 */
-export function intersect() {
-  var getDependentKeyGuids = function (changeMeta) {
-    return map(changeMeta.property._dependentKeys, function (dependentKey) {
-      return guidFor(dependentKey);
+export function intersect(...args) {
+  return multiArrayMacro(args, function(dependentKeys) {
+    var arrays = dependentKeys.map(dependentKey => {
+      var array = get(this, dependentKey);
+
+      return isArray(array) ? array : [];
     });
-  };
 
-  var args = a_slice.call(arguments);
-
-  args.push({
-    initialize: function (array, changeMeta, instanceMeta) {
-      instanceMeta.itemCounts = {};
-    },
-
-    addedItem: function(array, item, changeMeta, instanceMeta) {
-      var itemGuid = guidFor(item);
-      var dependentGuids = getDependentKeyGuids(changeMeta);
-      var dependentGuid = guidFor(changeMeta.arrayChanged);
-      var numberOfDependentArrays = changeMeta.property._dependentKeys.length;
-      var itemCounts = instanceMeta.itemCounts;
-
-      if (!itemCounts[itemGuid]) {
-        itemCounts[itemGuid] = {};
-      }
-
-      if (itemCounts[itemGuid][dependentGuid] === undefined) {
-        itemCounts[itemGuid][dependentGuid] = 0;
-      }
-
-      if (++itemCounts[itemGuid][dependentGuid] === 1 &&
-          numberOfDependentArrays === keys(itemCounts[itemGuid]).length) {
-        array.addObject(item);
-      }
-
-      return array;
-    },
-
-    removedItem: function(array, item, changeMeta, instanceMeta) {
-      var itemGuid = guidFor(item);
-      var dependentGuids = getDependentKeyGuids(changeMeta);
-      var dependentGuid = guidFor(changeMeta.arrayChanged);
-      var numberOfDependentArrays = changeMeta.property._dependentKeys.length;
-      var numberOfArraysItemAppearsIn;
-      var itemCounts = instanceMeta.itemCounts;
-
-      if (itemCounts[itemGuid][dependentGuid] === undefined) {
-        itemCounts[itemGuid][dependentGuid] = 0;
-      }
-
-      if (--itemCounts[itemGuid][dependentGuid] === 0) {
-        delete itemCounts[itemGuid][dependentGuid];
-        numberOfArraysItemAppearsIn = keys(itemCounts[itemGuid]).length;
-
-        if (numberOfArraysItemAppearsIn === 0) {
-          delete itemCounts[itemGuid];
+    var results = arrays.pop().filter(candidate => {
+      for (var i = 0; i < arrays.length; i++) {
+        var found = false;
+        var array = arrays[i];
+        for (var j = 0; j < array.length; j++) {
+          if (array[j] === candidate) {
+            found = true;
+            break;
+          }
         }
 
-        array.removeObject(item);
+        if (found === false) { return false; }
       }
 
-      return array;
-    }
-  });
+      return true;
+    });
 
-  return arrayComputed.apply(null, args);
+
+    return Ember.A(results);
+  });
 }
+
 
 /**
   A computed property which returns a new array with all the
@@ -545,103 +463,30 @@ export function intersect() {
   hamster.get('wants'); // ['banana']
   ```
 
-  @method computed.setDiff
-  @for Ember
+  @method setDiff
+  @for Ember.computed
   @param {String} setAProperty
   @param {String} setBProperty
   @return {Ember.ComputedProperty} computes a new array with all the
   items from the first dependent array that are not in the second
   dependent array
+  @public
 */
 export function setDiff(setAProperty, setBProperty) {
   if (arguments.length !== 2) {
     throw new EmberError('setDiff requires exactly two dependent arrays.');
   }
 
-  return arrayComputed(setAProperty, setBProperty, {
-    addedItem: function (array, item, changeMeta, instanceMeta) {
-      var setA = get(this, setAProperty);
-      var setB = get(this, setBProperty);
+  return computed(`${setAProperty}.[]`, `${setBProperty}.[]`, function() {
+    var setA = this.get(setAProperty);
+    var setB = this.get(setBProperty);
 
-      if (changeMeta.arrayChanged === setA) {
-        if (!setB.contains(item)) {
-          array.addObject(item);
-        }
-      } else {
-        array.removeObject(item);
-      }
+    if (!isArray(setA)) { return Ember.A(); }
+    if (!isArray(setB)) { return Ember.A(setA); }
 
-      return array;
-    },
-
-    removedItem: function (array, item, changeMeta, instanceMeta) {
-      var setA = get(this, setAProperty);
-      var setB = get(this, setBProperty);
-
-      if (changeMeta.arrayChanged === setB) {
-        if (setA.contains(item)) {
-          array.addObject(item);
-        }
-      } else {
-        array.removeObject(item);
-      }
-
-      return array;
-    }
-  });
+    return setA.filter(x => setB.indexOf(x) === -1);
+  }).readOnly();
 }
-
-function binarySearch(array, item, low, high) {
-  var mid, midItem, res, guidMid, guidItem;
-
-  if (arguments.length < 4) {
-    high = get(array, 'length');
-  }
-
-  if (arguments.length < 3) {
-    low = 0;
-  }
-
-  if (low === high) {
-    return low;
-  }
-
-  mid = low + Math.floor((high - low) / 2);
-  midItem = array.objectAt(mid);
-
-  guidMid = _guidFor(midItem);
-  guidItem = _guidFor(item);
-
-  if (guidMid === guidItem) {
-    return mid;
-  }
-
-  res = this.order(midItem, item);
-
-  if (res === 0) {
-    res = guidMid < guidItem ? -1 : 1;
-  }
-
-
-  if (res < 0) {
-    return this.binarySearch(array, item, mid+1, high);
-  } else if (res > 0) {
-    return this.binarySearch(array, item, low, mid);
-  }
-
-  return mid;
-
-  function _guidFor(item) {
-    if (SearchProxy.detectInstance(item)) {
-      return guidFor(get(item, 'content'));
-    }
-
-    return guidFor(item);
-  }
-}
-
-
-var SearchProxy = ObjectProxy.extend();
 
 /**
   A computed property which returns a new array with all the
@@ -699,115 +544,79 @@ var SearchProxy = ObjectProxy.extend();
   todoList.get('priorityTodos');    // [{ name:'Release', priority:1 }, { name:'Unit Test', priority:2 }, { name:'Documentation', priority:3 }]
   ```
 
-  @method computed.sort
-  @for Ember
-  @param {String} dependentKey
+  @method sort
+  @for Ember.computed
+  @param {String} itemsKey
   @param {String or Function} sortDefinition a dependent key to an
   array of sort properties (add `:desc` to the arrays sort properties to sort descending) or a function to use when sorting
   @return {Ember.ComputedProperty} computes a new sorted array based
   on the sort property array or callback function
+  @public
 */
 export function sort(itemsKey, sortDefinition) {
   Ember.assert('Ember.computed.sort requires two arguments: an array key to sort and ' +
     'either a sort properties key or sort function', arguments.length === 2);
 
-  var initFn, sortPropertiesKey;
-
   if (typeof sortDefinition === 'function') {
-    initFn = function (array, changeMeta, instanceMeta) {
-      instanceMeta.order = sortDefinition;
-      instanceMeta.binarySearch = binarySearch;
-    };
+    return customSort(itemsKey, sortDefinition);
   } else {
-    sortPropertiesKey = sortDefinition;
-
-    initFn = function (array, changeMeta, instanceMeta) {
-      function setupSortProperties() {
-        var sortPropertyDefinitions = get(this, sortPropertiesKey);
-        var sortProperties = instanceMeta.sortProperties = [];
-        var sortPropertyAscending = instanceMeta.sortPropertyAscending = {};
-        var sortProperty, idx, asc;
-
-        Ember.assert('Cannot sort: \'' + sortPropertiesKey + '\' is not an array.',
-          isArray(sortPropertyDefinitions));
-
-        changeMeta.property.clearItemPropertyKeys(itemsKey);
-
-        forEach(sortPropertyDefinitions, function (sortPropertyDefinition) {
-          if ((idx = sortPropertyDefinition.indexOf(':')) !== -1) {
-            sortProperty = sortPropertyDefinition.substring(0, idx);
-            asc = sortPropertyDefinition.substring(idx+1).toLowerCase() !== 'desc';
-          } else {
-            sortProperty = sortPropertyDefinition;
-            asc = true;
-          }
-
-          sortProperties.push(sortProperty);
-          sortPropertyAscending[sortProperty] = asc;
-          changeMeta.property.itemPropertyKey(itemsKey, sortProperty);
-        });
-
-        sortPropertyDefinitions.addObserver('@each', this, updateSortPropertiesOnce);
-      }
-
-      function updateSortPropertiesOnce() {
-        run.once(this, updateSortProperties, changeMeta.propertyName);
-      }
-
-      function updateSortProperties(propertyName) {
-        setupSortProperties.call(this);
-        changeMeta.property.recomputeOnce.call(this, propertyName);
-      }
-
-      addObserver(this, sortPropertiesKey, updateSortPropertiesOnce);
-      setupSortProperties.call(this);
-
-      instanceMeta.order = function (itemA, itemB) {
-        var isProxy = itemB instanceof SearchProxy;
-        var sortProperty, result, asc;
-
-        for (var i = 0; i < this.sortProperties.length; ++i) {
-          sortProperty = this.sortProperties[i];
-          result = compare(get(itemA, sortProperty), isProxy ? itemB[sortProperty] : get(itemB, sortProperty));
-
-          if (result !== 0) {
-            asc = this.sortPropertyAscending[sortProperty];
-            return asc ? result : (-1 * result);
-          }
-        }
-
-        return 0;
-      };
-
-      instanceMeta.binarySearch = binarySearch;
-    };
+    return propertySort(itemsKey, sortDefinition);
   }
+}
 
-  return arrayComputed(itemsKey, {
-    initialize: initFn,
+function customSort(itemsKey, comparator) {
+  return arrayMacro(itemsKey, value => value.slice().sort(comparator));
+}
 
-    addedItem: function (array, item, changeMeta, instanceMeta) {
-      var index = instanceMeta.binarySearch(array, item);
-      array.insertAt(index, item);
+// This one needs to dynamically set up and tear down observers on the itemsKey
+// depending on the sortProperties
+function propertySort(itemsKey, sortPropertiesKey) {
+  var cp = new ComputedProperty(function(key) {
+    function didChange() {
+      this.notifyPropertyChange(key);
+    }
 
-      return array;
-    },
+    var items = itemsKey === '@this' ? this : get(this, itemsKey);
+    var sortProperties = get(this, sortPropertiesKey);
 
-    removedItem: function (array, item, changeMeta, instanceMeta) {
-      var proxyProperties, index, searchItem;
+    // TODO: Ideally we'd only do this if things have changed
+    if (cp._sortPropObservers) {
+      cp._sortPropObservers.forEach(args => removeObserver.apply(null, args));
+    }
 
-      if (changeMeta.previousValues) {
-        proxyProperties = merge({ content: item }, changeMeta.previousValues);
+    cp._sortPropObservers = [];
 
-        searchItem = SearchProxy.create(proxyProperties);
-      } else {
-        searchItem = item;
+    if (!isArray(sortProperties)) { return items; }
+
+    // Normalize properties
+    var normalizedSort = sortProperties.map(p => {
+      let [prop, direction] = p.split(':');
+      direction = direction || 'asc';
+
+      return [prop, direction];
+    });
+
+    // TODO: Ideally we'd only do this if things have changed
+    // Add observers
+    normalizedSort.forEach(prop => {
+      var args = [this, `${itemsKey}.@each.${prop[0]}`, didChange];
+      cp._sortPropObservers.push(args);
+      addObserver.apply(null, args);
+    });
+
+    return Ember.A(items.slice().sort((itemA, itemB) => {
+
+      for (var i = 0; i < normalizedSort.length; ++i) {
+        var [prop, direction] = normalizedSort[i];
+        var result = compare(get(itemA, prop), get(itemB, prop));
+        if (result !== 0) {
+          return (direction === 'desc') ? (-1 * result) : result;
+        }
       }
 
-      index = instanceMeta.binarySearch(array, searchItem);
-      array.removeAt(index);
-
-      return array;
-    }
+      return 0;
+    }));
   });
+
+  return cp.property(`${itemsKey}.[]`, `${sortPropertiesKey}.[]`).readOnly();
 }

@@ -10,17 +10,17 @@ var suite = SuiteModuleBuilder.create();
 suite.module('reject');
 
 suite.test('should reject any item that does not meet the condition', function() {
-  var obj = this.newObject([1,2,3,4]),
-      result;
+  var obj = this.newObject([1,2,3,4]);
+  var result;
 
   result = obj.reject(function(i) { return i < 3; });
   deepEqual(result, [3,4], 'reject the correct items');
 });
 
 suite.test('should be the inverse of filter', function() {
-  var obj = this.newObject([1,2,3,4]),
-      isEven = function(i) { return i % 2 === 0; },
-      filtered, rejected;
+  var obj = this.newObject([1,2,3,4]);
+  var isEven = function(i) { return i % 2 === 0; };
+  var filtered, rejected;
 
   filtered = obj.filter(isEven);
   rejected = obj.reject(isEven);
@@ -67,72 +67,72 @@ suite.test('should reject on second argument if provided', function() {
   var obj, ary;
 
   ary = [
-    { name: 'obj1', foo: 3},
-    EmberObject.create({ name: 'obj2', foo: 2}),
-    { name: 'obj3', foo: 2},
-    EmberObject.create({ name: 'obj4', foo: 3})
+    { name: 'obj1', foo: 3 },
+    EmberObject.create({ name: 'obj2', foo: 2 }),
+    { name: 'obj3', foo: 2 },
+    EmberObject.create({ name: 'obj4', foo: 3 })
   ];
 
   obj = this.newObject(ary);
 
-  deepEqual(obj.rejectBy('foo', 3), [ary[1], ary[2]], "rejectBy('foo', 3)')");
+  deepEqual(obj.rejectBy('foo', 3), [ary[1], ary[2]], 'rejectBy(\'foo\', 3)\')');
 });
 
 suite.test('should correctly reject null second argument', function() {
   var obj, ary;
 
   ary = [
-    { name: 'obj1', foo: 3},
-    EmberObject.create({ name: 'obj2', foo: null}),
-    { name: 'obj3', foo: null},
-    EmberObject.create({ name: 'obj4', foo: 3})
+    { name: 'obj1', foo: 3 },
+    EmberObject.create({ name: 'obj2', foo: null }),
+    { name: 'obj3', foo: null },
+    EmberObject.create({ name: 'obj4', foo: 3 })
   ];
 
   obj = this.newObject(ary);
 
-  deepEqual(obj.rejectBy('foo', null), [ary[0], ary[3]], "rejectBy('foo', null)')");
+  deepEqual(obj.rejectBy('foo', null), [ary[0], ary[3]], 'rejectBy(\'foo\', null)\')');
 });
 
 suite.test('should correctly reject undefined second argument', function() {
   var obj, ary;
 
   ary = [
-    { name: 'obj1', foo: 3},
-    EmberObject.create({ name: 'obj2', foo: 2})
+    { name: 'obj1', foo: 3 },
+    EmberObject.create({ name: 'obj2', foo: 2 })
   ];
 
   obj = this.newObject(ary);
 
-  deepEqual(obj.rejectBy('bar', undefined), [], "rejectBy('bar', undefined)')");
+  deepEqual(obj.rejectBy('bar', undefined), [], 'rejectBy(\'bar\', undefined)\')');
 });
 
 suite.test('should correctly reject explicit undefined second argument', function() {
   var obj, ary;
 
   ary = [
-    { name: 'obj1', foo: 3},
-    EmberObject.create({ name: 'obj2', foo: 3}),
-    { name: 'obj3', foo: undefined},
-    EmberObject.create({ name: 'obj4', foo: undefined}),
-    { name: 'obj5'},
-    EmberObject.create({ name: 'obj6'})
+    { name: 'obj1', foo: 3 },
+    EmberObject.create({ name: 'obj2', foo: 3 }),
+    { name: 'obj3', foo: undefined },
+    EmberObject.create({ name: 'obj4', foo: undefined }),
+    { name: 'obj5' },
+    EmberObject.create({ name: 'obj6' })
   ];
 
   obj = this.newObject(ary);
 
-  deepEqual(obj.rejectBy('foo', undefined), ary.slice(0, 2), "rejectBy('foo', undefined)')");
+  deepEqual(obj.rejectBy('foo', undefined), ary.slice(0, 2), 'rejectBy(\'foo\', undefined)\')');
 });
 
 suite.test('should match undefined, null, or false properties without second argument', function() {
   var obj, ary;
 
   ary = [
-    { name: 'obj1', foo: 3},
-    EmberObject.create({ name: 'obj2', foo: 3}),
-    { name: 'obj3', foo: undefined},
-    EmberObject.create({ name: 'obj4', foo: undefined}),
-    { name: 'obj5'},
-    EmberObject.create({ name: 'obj6'}),
+    { name: 'obj1', foo: 3 },
+    EmberObject.create({ name: 'obj2', foo: 3 }),
+    { name: 'obj3', foo: undefined },
+    EmberObject.create({ name: 'obj4', foo: undefined }),
+    { name: 'obj5' },
+    EmberObject.create({ name: 'obj6' }),
     { name: 'obj7', foo: null },
     EmberObject.create({ name: 'obj8', foo: null }),
     { name: 'obj9', foo: false },
@@ -141,7 +141,7 @@ suite.test('should match undefined, null, or false properties without second arg
 
   obj = this.newObject(ary);
 
-  deepEqual(obj.rejectBy('foo'), ary.slice(2), "rejectBy('foo')')");
+  deepEqual(obj.rejectBy('foo'), ary.slice(2), 'rejectBy(\'foo\')\')');
 });
 
 suite.test('should be aliased to rejectProperty', function() {

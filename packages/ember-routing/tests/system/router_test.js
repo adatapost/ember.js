@@ -1,86 +1,101 @@
-import run from "ember-metal/run_loop";
-import copy from "ember-runtime/copy";
-import merge from "ember-metal/merge";
-import { map } from "ember-metal/enumerable_utils";
-import Container from 'container/container';
-import HashLocation from "ember-routing/location/hash_location";
-import AutoLocation from "ember-routing/location/auto_location";
-import EmberRouter from "ember-routing/system/router";
+import merge from 'ember-metal/merge';
+import Registry from 'container/registry';
+import HashLocation from 'ember-routing/location/hash_location';
+import HistoryLocation from 'ember-routing/location/history_location';
+import AutoLocation from 'ember-routing/location/auto_location';
+import NoneLocation from 'ember-routing/location/none_location';
+import Router from 'ember-routing/system/router';
+import { runDestroy } from 'ember-runtime/tests/utils';
 
-var container, Router, router;
+var registry, container;
 
-function createRouter(overrides) {
+function createRouter(overrides, disableSetup) {
   var opts = merge({ container: container }, overrides);
-  router = Router.create(opts);
+  var routerWithContainer = Router.extend();
+  var router = routerWithContainer.create(opts);
+
+  if (!disableSetup) {
+    router.setupRouter();
+  }
+
+  return router;
 }
 
-QUnit.module("Ember Router", {
-  setup: function() {
-    container = new Container();
+QUnit.module('Ember Router', {
+  setup() {
+    registry = new Registry();
+    container = registry.container();
 
     //register the HashLocation (the default)
-    container.register('location:hash', HashLocation);
-
-    // ensure rootURL is injected into any locations
-    container.injection('location', 'rootURL', '-location-setting:root-url');
-
-    Router = EmberRouter.extend();
+    registry.register('location:hash', HashLocation);
+    registry.register('location:history', HistoryLocation);
+    registry.register('location:auto', AutoLocation);
+    registry.register('location:none', NoneLocation);
   },
-  teardown: function() {
-    container = Router = router = null;
+  teardown() {
+    runDestroy(container);
+    registry = container = null;
   }
 });
 
-test("can create a router without a container", function() {
-  var router = Router.create();
+QUnit.test('can create a router without a container', function() {
+  createRouter({ container: null }, true);
 
-  ok(router.router);
+  ok(true, 'no errors were thrown when creating without a container');
 });
 
-test("should create a router if one does not exist on the constructor", function() {
-  createRouter();
+QUnit.test('should not create a router.js instance upon init', function() {
+  var router = createRouter(null, true);
 
-  ok(router.router);
+  ok(!router.router);
 });
 
-test("should destroy its location upon destroying the routers container.", function() {
-  createRouter();
+QUnit.test('should not reify location until setupRouter is called', function() {
+  var router = createRouter(null, true);
+  equal(typeof router.location, 'string', 'location is specified as a string');
 
+  router.setupRouter();
+
+  equal(typeof router.location, 'object', 'location is reified into an object');
+});
+
+QUnit.test('should destroy its location upon destroying the routers container.', function() {
+  var router = createRouter();
   var location = router.get('location');
 
-  run(container, 'destroy');
+  runDestroy(container);
 
-  ok(location.isDestroyed, "location should be destroyed");
+  ok(location.isDestroyed, 'location should be destroyed');
 });
 
-test("should instantiate its location with its `rootURL`", function() {
-  createRouter({
+QUnit.test('should instantiate its location with its `rootURL`', function() {
+  var router = createRouter({
     rootURL: '/rootdir/'
   });
-
   var location = router.get('location');
 
   equal(location.get('rootURL'), '/rootdir/');
 });
 
-test("Ember.AutoLocation._replacePath should be called with the right path", function() {
+QUnit.test('replacePath should be called with the right path', function() {
   expect(1);
 
-  var AutoTestLocation = copy(AutoLocation);
+  var location = container.lookup('location:auto');
 
-  AutoTestLocation._location = {
+  var browserLocation = {
     href: 'http://test.com/rootdir/welcome',
     origin: 'http://test.com',
     pathname: '/rootdir/welcome',
     hash: '',
     search: '',
-    replace: function(url) {
+    replace(url) {
       equal(url, 'http://test.com/rootdir/#/welcome');
     }
   };
-  AutoTestLocation._getSupportsHistory = function() { return false; };
 
-  container.register('location:auto', AutoTestLocation);
+  location.location = browserLocation;
+  location.global = { onhashchange() { } };
+  location.history = null;
 
   createRouter({
     location: 'auto',
@@ -88,18 +103,18 @@ test("Ember.AutoLocation._replacePath should be called with the right path", fun
   });
 });
 
-test("Ember.Router._routePath should consume identical prefixes", function() {
+QUnit.test('Ember.Router._routePath should consume identical prefixes', function() {
   createRouter();
 
   expect(8);
 
   function routePath(s1, s2, s3) {
-    var handlerInfos = map(arguments, function(s) {
+    var handlerInfos = Array.prototype.slice.call(arguments).map(function(s) {
       return { name: s };
     });
     handlerInfos.unshift({ name: 'ignored' });
 
-    return EmberRouter._routePath(handlerInfos);
+    return Router._routePath(handlerInfos);
   }
 
   equal(routePath('foo'), 'foo');
@@ -115,21 +130,22 @@ test("Ember.Router._routePath should consume identical prefixes", function() {
   equal(routePath('foo.bar.baz', 'foo'), 'foo.bar.baz.foo');
 });
 
-test("Router should cancel routing setup when the Location class says so via cancelRouterSetup", function() {
+QUnit.test('Router should cancel routing setup when the Location class says so via cancelRouterSetup', function() {
   expect(0);
 
+  var router;
   var FakeLocation = {
     cancelRouterSetup: true,
-    create: function () { return this; }
+    create() { return this; }
   };
 
-  container.register('location:fake', FakeLocation);
+  registry.register('location:fake', FakeLocation);
 
-  router = Router.create({
+  router = createRouter({
     container: container,
     location: 'fake',
 
-    _setupRouter: function () {
+    _setupRouter() {
       ok(false, '_setupRouter should not be called');
     }
   });
@@ -137,28 +153,43 @@ test("Router should cancel routing setup when the Location class says so via can
   router.startRouting();
 });
 
-test("AutoLocation should replace the url when it's not in the preferred format", function() {
+QUnit.test('AutoLocation should replace the url when it\'s not in the preferred format', function() {
   expect(1);
 
-  var AutoTestLocation = copy(AutoLocation);
+  var location = container.lookup('location:auto');
 
-  AutoTestLocation._location = {
+  location.location = {
     href: 'http://test.com/rootdir/welcome',
     origin: 'http://test.com',
     pathname: '/rootdir/welcome',
     hash: '',
     search: '',
-    replace: function(url) {
+    replace(url) {
       equal(url, 'http://test.com/rootdir/#/welcome');
     }
   };
-
-  AutoTestLocation._getSupportsHistory = function() { return false; };
-
-  container.register('location:auto', AutoTestLocation);
+  location.history = null;
+  location.global = {
+    onhashchange() { }
+  };
 
   createRouter({
     location: 'auto',
     rootURL: '/rootdir/'
   });
+});
+
+QUnit.test('Router#handleURL should remove any #hashes before doing URL transition', function() {
+  expect(2);
+
+  var router = createRouter({
+    container: container,
+
+    _doURLTransition(routerJsMethod, url) {
+      equal(routerJsMethod, 'handleURL');
+      equal(url, '/foo/bar?time=morphin');
+    }
+  });
+
+  router.handleURL('/foo/bar?time=morphin#pink-power-ranger');
 });

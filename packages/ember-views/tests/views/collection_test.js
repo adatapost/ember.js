@@ -1,27 +1,30 @@
-import Ember from "ember-metal/core"; // Ember.A
-import { set } from "ember-metal/property_set";
-import { get } from "ember-metal/property_get";
-import run from "ember-metal/run_loop";
-import { forEach } from "ember-metal/enumerable_utils";
-import { Mixin } from "ember-metal/mixin";
-import { fmt } from "ember-runtime/system/string";
-import ArrayProxy from "ember-runtime/system/array_proxy";
-import ArrayController from "ember-runtime/controllers/array_controller";
-import jQuery from "ember-views/system/jquery";
-import CollectionView from "ember-views/views/collection_view";
-import View from "ember-views/views/view";
+import Ember from 'ember-metal/core'; // Ember.A
+import { set } from 'ember-metal/property_set';
+import run from 'ember-metal/run_loop';
+import { Mixin } from 'ember-metal/mixin';
+import { fmt } from 'ember-runtime/system/string';
+import ArrayProxy from 'ember-runtime/system/array_proxy';
+import ArrayController, { arrayControllerDeprecation } from 'ember-runtime/controllers/array_controller';
+import jQuery from 'ember-views/system/jquery';
+import CollectionView from 'ember-views/views/collection_view';
+import View from 'ember-views/views/view';
+import Registry from 'container/registry';
+import compile from 'ember-template-compiler/system/compile';
+import getElementStyle from 'ember-views/tests/test-helpers/get-element-style';
 
 var trim = jQuery.trim;
+var registry;
 var view;
 
 var originalLookup;
 
-QUnit.module("CollectionView", {
-  setup: function() {
+QUnit.module('CollectionView', {
+  setup() {
     CollectionView.CONTAINER_MAP.del = 'em';
     originalLookup = Ember.lookup;
+    registry = new Registry();
   },
-  teardown: function() {
+  teardown() {
     delete CollectionView.CONTAINER_MAP.del;
     run(function() {
       if (view) { view.destroy(); }
@@ -31,7 +34,7 @@ QUnit.module("CollectionView", {
   }
 });
 
-test("should render a view for each item in its content array", function() {
+QUnit.test('should render a view for each item in its content array', function() {
   view = CollectionView.create({
     content: Ember.A([1, 2, 3, 4])
   });
@@ -42,16 +45,30 @@ test("should render a view for each item in its content array", function() {
   equal(view.$('div').length, 4);
 });
 
-test("should render the emptyView if content array is empty (view class)", function() {
+QUnit.test('should render the emptyView if content array is empty (view class)', function() {
+  view = CollectionView.create({
+    content: Ember.A(),
+
+    emptyView: View.extend({
+      template: compile('OY SORRY GUVNAH NO NEWS TODAY EH')
+    })
+  });
+
+  run(function() {
+    view.append();
+  });
+
+  ok(view.$().find('div:contains("OY SORRY GUVNAH")').length, 'displays empty view');
+});
+
+QUnit.test('should render the emptyView if content array is empty (view class with custom tagName)', function() {
   view = CollectionView.create({
     tagName: 'del',
     content: Ember.A(),
 
     emptyView: View.extend({
       tagName: 'kbd',
-      render: function(buf) {
-        buf.push("OY SORRY GUVNAH NO NEWS TODAY EH");
-      }
+      template: compile('OY SORRY GUVNAH NO NEWS TODAY EH')
     })
   });
 
@@ -59,19 +76,17 @@ test("should render the emptyView if content array is empty (view class)", funct
     view.append();
   });
 
-  ok(view.$().find('kbd:contains("OY SORRY GUVNAH")').length, "displays empty view");
+  ok(view.$().find('kbd:contains("OY SORRY GUVNAH")').length, 'displays empty view');
 });
 
-test("should render the emptyView if content array is empty (view instance)", function() {
+QUnit.test('should render the emptyView if content array is empty (view instance)', function() {
   view = CollectionView.create({
     tagName: 'del',
     content: Ember.A(),
 
     emptyView: View.create({
       tagName: 'kbd',
-      render: function(buf) {
-        buf.push("OY SORRY GUVNAH NO NEWS TODAY EH");
-      }
+      template: compile('OY SORRY GUVNAH NO NEWS TODAY EH')
     })
   });
 
@@ -79,19 +94,17 @@ test("should render the emptyView if content array is empty (view instance)", fu
     view.append();
   });
 
-  ok(view.$().find('kbd:contains("OY SORRY GUVNAH")').length, "displays empty view");
+  ok(view.$().find('kbd:contains("OY SORRY GUVNAH")').length, 'displays empty view');
 });
 
-test("should be able to override the tag name of itemViewClass even if tag is in default mapping", function() {
+QUnit.test('should be able to override the tag name of itemViewClass even if tag is in default mapping', function() {
   view = CollectionView.create({
     tagName: 'del',
     content: Ember.A(['NEWS GUVNAH']),
 
     itemViewClass: View.extend({
       tagName: 'kbd',
-      render: function(buf) {
-        buf.push(get(this, 'content'));
-      }
+      template: compile('{{view.content}}')
     })
   });
 
@@ -99,19 +112,16 @@ test("should be able to override the tag name of itemViewClass even if tag is in
     view.append();
   });
 
-  ok(view.$().find('kbd:contains("NEWS GUVNAH")').length, "displays the item view with proper tag name");
+  ok(view.$().find('kbd:contains("NEWS GUVNAH")').length, 'displays the item view with proper tag name');
 });
 
-test("should allow custom item views by setting itemViewClass", function() {
-  var passedContents = [];
+QUnit.test('should allow custom item views by setting itemViewClass', function() {
+  var content = Ember.A(['foo', 'bar', 'baz']);
   view = CollectionView.create({
-    content: Ember.A(['foo', 'bar', 'baz']),
+    content: content,
 
     itemViewClass: View.extend({
-      render: function(buf) {
-        passedContents.push(get(this, 'content'));
-        buf.push(get(this, 'content'));
-      }
+      template: compile('{{view.content}}')
     })
   });
 
@@ -119,23 +129,17 @@ test("should allow custom item views by setting itemViewClass", function() {
     view.append();
   });
 
-  deepEqual(passedContents, ['foo', 'bar', 'baz'], "sets the content property on each item view");
-
-  forEach(passedContents, function(item) {
-    equal(view.$(':contains("'+item+'")').length, 1);
-  });
+  content.forEach((item) => equal(view.$(':contains("'+item+'")').length, 1));
 });
 
-test("should insert a new item in DOM when an item is added to the content array", function() {
+QUnit.test('should insert a new item in DOM when an item is added to the content array', function() {
   var content = Ember.A(['foo', 'bar', 'baz']);
 
   view = CollectionView.create({
     content: content,
 
     itemViewClass: View.extend({
-      render: function(buf) {
-        buf.push(get(this, 'content'));
-      }
+      template: compile('{{view.content}}')
     })
   });
 
@@ -143,56 +147,48 @@ test("should insert a new item in DOM when an item is added to the content array
     view.append();
   });
 
-  forEach(content, function(item) {
-    equal(view.$(':contains("'+item+'")').length, 1, "precond - generates pre-existing items");
+  content.forEach((item) => {
+    equal(view.$(':contains("'+item+'")').length, 1, 'precond - generates pre-existing items');
   });
 
   run(function() {
     content.insertAt(1, 'quux');
   });
 
-  equal(jQuery.trim(view.$(':nth-child(2)').text()), 'quux');
+  equal(trim(view.$(':nth-child(2)').text()), 'quux');
 });
 
-test("should remove an item from DOM when an item is removed from the content array", function() {
+QUnit.test('should remove an item from DOM when an item is removed from the content array', function() {
   var content = Ember.A(['foo', 'bar', 'baz']);
 
   view = CollectionView.create({
     content: content,
 
     itemViewClass: View.extend({
-      render: function(buf) {
-        buf.push(get(this, 'content'));
-      }
+      template: compile('{{view.content}}')
     })
   });
 
-  run(function() {
-    view.append();
+  run(() => view.append());
+
+  content.forEach((item) => {
+    equal(view.$(':contains("'+item+'")').length, 1, 'precond - generates pre-existing items');
   });
 
-  forEach(content, function(item) {
-    equal(view.$(':contains("'+item+'")').length, 1, "precond - generates pre-existing items");
-  });
+  run(() => content.removeAt(1));
 
-  run(function() {
-    content.removeAt(1);
-  });
-
-  forEach(content, function(item, idx) {
+  content.forEach((item, idx) => {
     equal(view.$(fmt(':nth-child(%@)', [String(idx+1)])).text(), item);
   });
 });
 
-test("it updates the view if an item is replaced", function() {
+QUnit.test('it updates the view if an item is replaced', function() {
   var content = Ember.A(['foo', 'bar', 'baz']);
   view = CollectionView.create({
     content: content,
 
     itemViewClass: View.extend({
-      render: function(buf) {
-        buf.push(get(this, 'content'));
-      }
+      template: compile('{{view.content}}')
     })
   });
 
@@ -200,61 +196,111 @@ test("it updates the view if an item is replaced", function() {
     view.append();
   });
 
-  forEach(content, function(item) {
-    equal(view.$(':contains("'+item+'")').length, 1, "precond - generates pre-existing items");
+  content.forEach((item) => {
+    equal(view.$(':contains("'+item+'")').length, 1, 'precond - generates pre-existing items');
   });
 
   run(function() {
     content.removeAt(1);
-    content.insertAt(1, "Kazuki" );
+    content.insertAt(1, 'Kazuki');
   });
 
-  forEach(content, function(item, idx) {
-    equal(jQuery.trim(view.$(fmt(':nth-child(%@)', [String(idx+1)])).text()), item, "postcond - correct array update");
+  content.forEach((item, idx) => {
+    equal(trim(view.$(fmt(':nth-child(%@)', [String(idx+1)])).text()), item, 'postcond - correct array update');
   });
 });
 
-test("can add and replace in the same runloop", function() {
+QUnit.test('can add and replace in the same runloop', function() {
   var content = Ember.A(['foo', 'bar', 'baz']);
   view = CollectionView.create({
     content: content,
 
     itemViewClass: View.extend({
-      render: function(buf) {
-        buf.push(get(this, 'content'));
-      }
+      template: compile('{{view.content}}')
     })
   });
 
-  run(function() {
-    view.append();
+  run(() => view.append());
+
+  content.forEach((item) => {
+    equal(view.$(':contains("'+item+'")').length, 1, 'precond - generates pre-existing items');
   });
 
-  forEach(content, function(item) {
-    equal(view.$(':contains("'+item+'")').length, 1, "precond - generates pre-existing items");
-  });
-
-  run(function() {
-    content.pushObject("Tom Dale" );
+  run(() => {
+    content.pushObject('Tom Dale');
     content.removeAt(0);
-    content.insertAt(0, "Kazuki" );
+    content.insertAt(0, 'Kazuki');
   });
 
-  forEach(content, function(item, idx) {
-    equal(jQuery.trim(view.$(fmt(':nth-child(%@)', [String(idx+1)])).text()), item, "postcond - correct array update");
+  content.forEach((item, idx) => {
+    equal(trim(view.$(fmt(':nth-child(%@)', [String(idx+1)])).text()), item, 'postcond - correct array update');
   });
 
 });
 
-test("can add and replace the object before the add in the same runloop", function() {
+QUnit.test('can add and replace the object before the add in the same runloop', function() {
   var content = Ember.A(['foo', 'bar', 'baz']);
   view = CollectionView.create({
     content: content,
 
     itemViewClass: View.extend({
-      render: function(buf) {
-        buf.push(get(this, 'content'));
-      }
+      template: compile('{{view.content}}')
+    })
+  });
+
+  run(() => view.append());
+
+  content.forEach((item) => {
+    equal(view.$(':contains("'+item+'")').length, 1, 'precond - generates pre-existing items');
+  });
+
+  run(() => {
+    content.pushObject('Tom Dale');
+    content.removeAt(1);
+    content.insertAt(1, 'Kazuki');
+  });
+
+  content.forEach((item, idx) => {
+    equal(trim(view.$(fmt(':nth-child(%@)', [String(idx+1)])).text()), item, 'postcond - correct array update');
+  });
+});
+
+QUnit.test('can add and replace complicatedly', function() {
+  var content = Ember.A(['foo', 'bar', 'baz']);
+  view = CollectionView.create({
+    content: content,
+
+    itemViewClass: View.extend({
+      template: compile('{{view.content}}')
+    })
+  });
+
+  run(() => view.append());
+
+  content.forEach((item) => {
+    equal(view.$(':contains("'+item+'")').length, 1, 'precond - generates pre-existing items');
+  });
+
+  run(() => {
+    content.pushObject('Tom Dale');
+    content.removeAt(1);
+    content.insertAt(1, 'Kazuki');
+    content.pushObject('Firestone');
+    content.pushObject('McMunch');
+  });
+
+  content.forEach((item, idx) => {
+    equal(trim(view.$(fmt(':nth-child(%@)', [String(idx+1)])).text()), item, 'postcond - correct array update: '+item.name+'!='+view.$(fmt(':nth-child(%@)', [String(idx+1)])).text());
+  });
+});
+
+QUnit.test('can add and replace complicatedly harder', function() {
+  var content = Ember.A(['foo', 'bar', 'baz']);
+  view = CollectionView.create({
+    content: content,
+
+    itemViewClass: View.extend({
+      template: compile('{{view.content}}')
     })
   });
 
@@ -262,89 +308,25 @@ test("can add and replace the object before the add in the same runloop", functi
     view.append();
   });
 
-  forEach(content, function(item) {
-    equal(view.$(':contains("'+item+'")').length, 1, "precond - generates pre-existing items");
+  content.forEach((item) => {
+    equal(view.$(':contains("'+item+'")').length, 1, 'precond - generates pre-existing items');
   });
 
   run(function() {
-    content.pushObject("Tom Dale" );
+    content.pushObject('Tom Dale');
     content.removeAt(1);
-    content.insertAt(1, "Kazuki" );
-  });
-
-  forEach(content, function(item, idx) {
-    equal(jQuery.trim(view.$(fmt(':nth-child(%@)', [String(idx+1)])).text()), item, "postcond - correct array update");
-  });
-});
-
-test("can add and replace complicatedly", function() {
-  var content = Ember.A(['foo', 'bar', 'baz']);
-  view = CollectionView.create({
-    content: content,
-
-    itemViewClass: View.extend({
-      render: function(buf) {
-        buf.push(get(this, 'content'));
-      }
-    })
-  });
-
-  run(function() {
-    view.append();
-  });
-
-  forEach(content, function(item) {
-    equal(view.$(':contains("'+item+'")').length, 1, "precond - generates pre-existing items");
-  });
-
-  run(function() {
-    content.pushObject("Tom Dale" );
-    content.removeAt(1);
-    content.insertAt(1, "Kazuki" );
-    content.pushObject("Firestone" );
-    content.pushObject("McMunch" );
-  });
-
-  forEach(content, function(item, idx) {
-    equal(jQuery.trim(view.$(fmt(':nth-child(%@)', [String(idx+1)])).text()), item, "postcond - correct array update: "+item.name+"!="+view.$(fmt(':nth-child(%@)', [String(idx+1)])).text());
-  });
-});
-
-test("can add and replace complicatedly harder", function() {
-  var content = Ember.A(['foo', 'bar', 'baz']);
-  view = CollectionView.create({
-    content: content,
-
-    itemViewClass: View.extend({
-      render: function(buf) {
-        buf.push(get(this, 'content'));
-      }
-    })
-  });
-
-  run(function() {
-    view.append();
-  });
-
-  forEach(content, function(item) {
-    equal(view.$(':contains("'+item+'")').length, 1, "precond - generates pre-existing items");
-  });
-
-  run(function() {
-    content.pushObject("Tom Dale" );
-    content.removeAt(1);
-    content.insertAt(1, "Kazuki" );
-    content.pushObject("Firestone" );
-    content.pushObject("McMunch" );
+    content.insertAt(1, 'Kazuki');
+    content.pushObject('Firestone');
+    content.pushObject('McMunch');
     content.removeAt(2);
   });
 
-  forEach(content, function(item, idx) {
-    equal(jQuery.trim(view.$(fmt(':nth-child(%@)', [String(idx+1)])).text()), item, "postcond - correct array update");
+  content.forEach((item, idx) => {
+    equal(trim(view.$(fmt(':nth-child(%@)', [String(idx+1)])).text()), item, 'postcond - correct array update');
   });
 });
 
-test("should allow changes to content object before layer is created", function() {
+QUnit.test('should allow changes to content object before layer is created', function() {
   view = CollectionView.create({
     content: null
   });
@@ -360,33 +342,31 @@ test("should allow changes to content object before layer is created", function(
   ok(view.$().children().length);
 });
 
-test("should fire life cycle events when elements are added and removed", function() {
-  var view,
-    didInsertElement = 0,
-    willDestroyElement = 0,
-    willDestroy = 0,
-    destroy = 0,
-    content = Ember.A([1, 2, 3]);
+QUnit.test('should fire life cycle events when elements are added and removed', function() {
+  var view;
+  var didInsertElement = 0;
+  var willDestroyElement = 0;
+  var willDestroy = 0;
+  var destroy = 0;
+  var content = Ember.A([1, 2, 3]);
   run(function () {
     view = CollectionView.create({
       content: content,
       itemViewClass: View.extend({
-        render: function(buf) {
-          buf.push(get(this, 'content'));
-        },
-        didInsertElement: function () {
+        template: compile('{{view.content}}'),
+        didInsertElement() {
           didInsertElement++;
         },
-        willDestroyElement: function () {
+        willDestroyElement() {
           willDestroyElement++;
         },
-        willDestroy: function () {
+        willDestroy() {
           willDestroy++;
-          this._super();
+          this._super.apply(this, arguments);
         },
-        destroy: function() {
+        destroy() {
           destroy++;
-          this._super();
+          this._super.apply(this, arguments);
         }
       })
     });
@@ -409,7 +389,7 @@ test("should fire life cycle events when elements are added and removed", functi
   equal(willDestroyElement, 0);
   equal(willDestroy, 0);
   equal(destroy, 0);
-  // Remove whitspace added by IE 8
+  // Remove whitespace added by IE 8
   equal(trim(view.$().text()), '01234');
 
   run(function () {
@@ -432,7 +412,7 @@ test("should fire life cycle events when elements are added and removed", functi
   equal(willDestroyElement, 5);
   equal(willDestroy, 5);
   equal(destroy, 5);
-  // Remove whitspace added by IE 8
+  // Remove whitespace added by IE 8
   equal(trim(view.$().text()), '789');
 
   run(function () {
@@ -445,12 +425,12 @@ test("should fire life cycle events when elements are added and removed", functi
   equal(destroy, 8);
 });
 
-test("should allow changing content property to be null", function() {
+QUnit.test('should allow changing content property to be null', function() {
   view = CollectionView.create({
     content: Ember.A([1, 2, 3]),
 
     emptyView: View.extend({
-      template: function() { return "(empty)"; }
+      template: compile('(empty)')
     })
   });
 
@@ -458,22 +438,20 @@ test("should allow changing content property to be null", function() {
     view.append();
   });
 
-  equal(view.$().children().length, 3, "precond - creates three elements");
+  equal(view.$().children().length, 3, 'precond - creates three elements');
 
   run(function() {
     set(view, 'content', null);
   });
 
-  equal(jQuery.trim(view.$().children().text()), "(empty)", "should display empty view");
+  equal(trim(view.$().children().text()), '(empty)', 'should display empty view');
 });
 
-test("should allow items to access to the CollectionView's current index in the content array", function() {
+QUnit.test('should allow items to access to the CollectionView\'s current index in the content array', function() {
   view = CollectionView.create({
     content: Ember.A(['zero', 'one', 'two']),
     itemViewClass: View.extend({
-      render: function(buf) {
-        buf.push(get(this, 'contentIndex'));
-      }
+      template: compile('{{view.contentIndex}}')
     })
   });
 
@@ -481,21 +459,18 @@ test("should allow items to access to the CollectionView's current index in the 
     view.append();
   });
 
-  deepEqual(view.$(':nth-child(1)').text(), "0");
-  deepEqual(view.$(':nth-child(2)').text(), "1");
-  deepEqual(view.$(':nth-child(3)').text(), "2");
+  deepEqual(view.$(':nth-child(1)').text(), '0');
+  deepEqual(view.$(':nth-child(2)').text(), '1');
+  deepEqual(view.$(':nth-child(3)').text(), '2');
 });
 
-test("should allow declaration of itemViewClass as a string", function() {
-  Ember.lookup = {
-    "Ember": {
-      "View": View
-    }
-  };
+QUnit.test('should allow declaration of itemViewClass as a string', function() {
+  registry.register('view:simple-view', View.extend());
 
   view = CollectionView.create({
+    container: registry.container(),
     content: Ember.A([1, 2, 3]),
-    itemViewClass: 'Ember.View'
+    itemViewClass: 'simple-view'
   });
 
   run(function() {
@@ -505,16 +480,14 @@ test("should allow declaration of itemViewClass as a string", function() {
   equal(view.$('.ember-view').length, 3);
 });
 
-test("should not render the emptyView if content is emptied and refilled in the same run loop", function() {
+QUnit.test('should not render the emptyView if content is emptied and refilled in the same run loop', function() {
   view = CollectionView.create({
     tagName: 'div',
     content: Ember.A(['NEWS GUVNAH']),
 
     emptyView: View.extend({
       tagName: 'kbd',
-      render: function(buf) {
-        buf.push("OY SORRY GUVNAH NO NEWS TODAY EH");
-      }
+      template: compile('OY SORRY GUVNAH NO NEWS TODAY EH')
     })
   });
 
@@ -532,10 +505,10 @@ test("should not render the emptyView if content is emptied and refilled in the 
   equal(view.$().find('kbd:contains("OY SORRY GUVNAH")').length, 0);
 });
 
-test("a array_proxy that backs an sorted array_controller that backs a collection view functions properly", function() {
-
-  var array = Ember.A([{ name: "Other Katz" }]);
-  var arrayProxy = ArrayProxy.create({content: array});
+QUnit.test('a array_proxy that backs an sorted array_controller that backs a collection view functions properly', function() {
+  expectDeprecation(arrayControllerDeprecation);
+  var array = Ember.A([{ name: 'Other Katz' }]);
+  var arrayProxy = ArrayProxy.create({ content: array });
 
   var sortedController = ArrayController.create({
     content: arrayProxy,
@@ -551,7 +524,7 @@ test("a array_proxy that backs an sorted array_controller that backs a collectio
   });
 
   run(function() {
-    arrayProxy.addObjects([{ name: "Scumbag Demon" }, { name: "Lord British" }]);
+    arrayProxy.addObjects([{ name: 'Scumbag Demon' }, { name: 'Lord British' }]);
   });
 
   equal(container.get('content.length'), 3, 'ArrayController should have 3 entries');
@@ -563,23 +536,22 @@ test("a array_proxy that backs an sorted array_controller that backs a collectio
   });
 });
 
-test("when a collection view is emptied, deeply nested views elements are not removed from the DOM and then destroyed again", function() {
+QUnit.test('when a collection view is emptied, deeply nested views elements are not removed from the DOM and then destroyed again', function() {
+  var gotDestroyed = [];
+
   var assertProperDestruction = Mixin.create({
-    destroyElement: function() {
-      if (this.state === 'inDOM') {
-        ok(this.get('element'), this + ' still exists in DOM');
-      }
-      return this._super();
+    destroy() {
+      gotDestroyed.push(this.label);
+      this._super(...arguments);
     }
   });
 
   var ChildView = View.extend(assertProperDestruction, {
-    render: function(buf) {
-      // emulate nested template
-      this.appendChild(View.createWithMixins(assertProperDestruction, {
-        template: function() { return "<div class='inner_element'></div>"; }
-      }));
-    }
+    template: compile('{{#view view.assertDestruction}}<div class="inner_element"></div>{{/view}}'),
+    label: 'parent',
+    assertDestruction: View.extend(assertProperDestruction, {
+      label: 'child'
+    })
   });
 
   var view = CollectionView.create({
@@ -591,29 +563,53 @@ test("when a collection view is emptied, deeply nested views elements are not re
   run(function() {
     view.append();
   });
-  equal(jQuery('.inner_element').length, 1, "precond - generates inner element");
+  equal(jQuery('.inner_element').length, 1, 'precond - generates inner element');
 
   run(function() {
     view.get('content').clear();
   });
-  equal(jQuery('.inner_element').length, 0, "elements removed");
+  equal(jQuery('.inner_element').length, 0, 'elements removed');
 
   run(function() {
-    view.remove();
+    view.destroy();
   });
+
+  deepEqual(gotDestroyed, ['parent', 'child'], 'The child view was destroyed');
 });
 
-test("should render the emptyView if content array is empty and emptyView is given as string", function() {
+QUnit.test('should render the emptyView if content array is empty and emptyView is given as string', function() {
+  registry.register('view:custom-empty', View.extend({
+    tagName: 'kbd',
+    template: compile('THIS IS AN EMPTY VIEW')
+  }));
+
+  view = CollectionView.create({
+    tagName: 'del',
+    content: Ember.A(),
+    container: registry.container(),
+
+    emptyView: 'custom-empty'
+  });
+
+  run(function() {
+    view.append();
+  });
+
+  ok(view.$().find('kbd:contains("THIS IS AN EMPTY VIEW")').length, 'displays empty view');
+});
+
+QUnit.test('should render the emptyView if content array is empty and emptyView is given as global string [DEPRECATED]', function() {
+  expectDeprecation(/Resolved the view "App.EmptyView" on the global context/);
+
   Ember.lookup = {
     App: {
       EmptyView: View.extend({
-      tagName: 'kbd',
-      render: function(buf) {
-        buf.push("THIS IS AN EMPTY VIEW");
-      }
+        tagName: 'kbd',
+        template: compile('THIS IS AN EMPTY VIEW')
       })
     }
   };
+
   view = CollectionView.create({
     tagName: 'del',
     content: Ember.A(),
@@ -625,22 +621,18 @@ test("should render the emptyView if content array is empty and emptyView is giv
     view.append();
   });
 
-  ok(view.$().find('kbd:contains("THIS IS AN EMPTY VIEW")').length, "displays empty view");
+  ok(view.$().find('kbd:contains("THIS IS AN EMPTY VIEW")').length, 'displays empty view');
 });
 
-test("should lookup against the container if itemViewClass is given as a string", function() {
+QUnit.test('should lookup against the container if itemViewClass is given as a string', function() {
   var ItemView = View.extend({
-    render: function(buf) {
-      buf.push(get(this, 'content'));
-    }
+    template: compile('{{view.content}}')
   });
 
-  var container = {
-    lookupFactory: lookupFactory
-  };
+  registry.register('view:item', ItemView);
 
   view = CollectionView.create({
-    container: container,
+    container: registry.container(),
     content: Ember.A([1, 2, 3, 4]),
     itemViewClass: 'item'
   });
@@ -651,26 +643,17 @@ test("should lookup against the container if itemViewClass is given as a string"
 
   equal(view.$('.ember-view').length, 4);
 
-  function lookupFactory(fullName) {
-    equal(fullName, 'view:item');
-
-    return ItemView;
-  }
 });
 
-test("should lookup only global path against the container if itemViewClass is given as a string", function() {
+QUnit.test('should lookup only global path against the container if itemViewClass is given as a string', function() {
   var ItemView = View.extend({
-    render: function(buf) {
-      buf.push(get(this, 'content'));
-    }
+    template: compile('{{view.content}}')
   });
 
-  var container = {
-    lookupFactory: lookupFactory
-  };
+  registry.register('view:top', ItemView);
 
   view = CollectionView.create({
-    container: container,
+    container: registry.container(),
     content: Ember.A(['hi']),
     itemViewClass: 'top'
   });
@@ -680,28 +663,18 @@ test("should lookup only global path against the container if itemViewClass is g
   });
 
   equal(view.$().text(), 'hi');
-
-  function lookupFactory(fullName) {
-    equal(fullName, 'view:top');
-
-    return ItemView;
-  }
 });
 
-test("should lookup against the container and render the emptyView if emptyView is given as string and content array is empty ", function() {
+QUnit.test('should lookup against the container and render the emptyView if emptyView is given as string and content array is empty ', function() {
   var EmptyView = View.extend({
     tagName: 'kbd',
-    render: function(buf) {
-      buf.push("THIS IS AN EMPTY VIEW");
-    }
+    template: compile('THIS IS AN EMPTY VIEW')
   });
 
-  var container = {
-    lookupFactory: lookupFactory
-  };
+  registry.register('view:empty', EmptyView);
 
   view = CollectionView.create({
-    container: container,
+    container: registry.container(),
     tagName: 'del',
     content: Ember.A(),
     emptyView: 'empty'
@@ -711,28 +684,18 @@ test("should lookup against the container and render the emptyView if emptyView 
     view.append();
   });
 
-  ok(view.$().find('kbd:contains("THIS IS AN EMPTY VIEW")').length, "displays empty view");
-
-  function lookupFactory(fullName) {
-    equal(fullName, 'view:empty');
-
-    return EmptyView;
-  }
+  ok(view.$().find('kbd:contains("THIS IS AN EMPTY VIEW")').length, 'displays empty view');
 });
 
-test("should lookup from only global path against the container if emptyView is given as string and content array is empty ", function() {
+QUnit.test('should lookup from only global path against the container if emptyView is given as string and content array is empty ', function() {
   var EmptyView = View.extend({
-    render: function(buf) {
-      buf.push("EMPTY");
-    }
+    template: compile('EMPTY')
   });
 
-  var container = {
-    lookupFactory: lookupFactory
-  };
+  registry.register('view:top', EmptyView);
 
   view = CollectionView.create({
-    container: container,
+    container: registry.container(),
     content: Ember.A(),
     emptyView: 'top'
   });
@@ -741,11 +704,26 @@ test("should lookup from only global path against the container if emptyView is 
     view.append();
   });
 
-  equal(view.$().text(), "EMPTY");
+  equal(view.$().text(), 'EMPTY');
+});
 
-  function lookupFactory(fullName) {
-    equal(fullName, 'view:top');
+QUnit.test('Collection with style attribute supports changing content', function() {
+  view = CollectionView.create({
+    attributeBindings: ['style'],
+    style: 'width: 100px;',
+    content: Ember.A(['foo', 'bar'])
+  });
 
-    return EmptyView;
-  }
+  run(function() {
+    view.appendTo('#qunit-fixture');
+  });
+
+  var style = getElementStyle(view.element);
+
+  equal(style, 'WIDTH: 100PX;', 'width is applied to the element');
+
+  run(function() {
+    view.get('content').pushObject('baz');
+  });
+
 });

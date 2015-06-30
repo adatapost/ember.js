@@ -1,37 +1,39 @@
 /**
 @module ember
 @submodule ember-application
+@public
 */
 
-import Ember from "ember-metal/core"; // Ember.assert
-import { get } from "ember-metal/property_get";
-import { set } from "ember-metal/property_set";
-import EmberError from "ember-metal/error";
-import { inspect } from "ember-metal/utils";
-import { computed } from "ember-metal/computed";
-import ControllerMixin from "ember-runtime/mixins/controller";
-import { meta } from "ember-metal/utils";
-import controllerFor from "ember-routing/system/controller_for";
+import Ember from 'ember-metal/core'; // Ember.assert
+import { get } from 'ember-metal/property_get';
+import EmberError from 'ember-metal/error';
+import { inspect } from 'ember-metal/utils';
+import { computed } from 'ember-metal/computed';
+import ControllerMixin from 'ember-runtime/mixins/controller';
+import controllerFor from 'ember-routing/system/controller_for';
 
 function verifyNeedsDependencies(controller, container, needs) {
-  var dependency, i, l, missing = [];
+  var dependency, i, l;
+  var missing = [];
 
   for (i=0, l=needs.length; i<l; i++) {
     dependency = needs[i];
 
-    Ember.assert(inspect(controller) + "#needs must not specify dependencies with periods in their names (" + dependency + ")", dependency.indexOf('.') === -1);
+    Ember.assert(inspect(controller) + '#needs must not specify dependencies with periods in their names (' +
+                 dependency + ')', dependency.indexOf('.') === -1);
 
     if (dependency.indexOf(':') === -1) {
-      dependency = "controller:" + dependency;
+      dependency = 'controller:' + dependency;
     }
 
     // Structure assert to still do verification but not string concat in production
-    if (!container.has(dependency)) {
+    if (!container._registry.has(dependency)) {
       missing.push(dependency);
     }
   }
   if (missing.length) {
-    throw new EmberError(inspect(controller) + " needs [ " + missing.join(', ') + " ] but " + (missing.length > 1 ? 'they' : 'it') + " could not be found");
+    throw new EmberError(inspect(controller) + ' needs [ ' + missing.join(', ') +
+                         ' ] but ' + (missing.length > 1 ? 'they' : 'it') + ' could not be found');
   }
 }
 
@@ -41,9 +43,10 @@ var defaultControllersComputedProperty = computed(function() {
   return {
     needs: get(controller, 'needs'),
     container: get(controller, 'container'),
-    unknownProperty: function(controllerName) {
-      var needs = this.needs,
-        dependency, i, l;
+    unknownProperty(controllerName) {
+      var needs = this.needs;
+      var dependency, i, l;
+
       for (i=0, l=needs.length; i<l; i++) {
         dependency = needs[i];
         if (dependency === controllerName) {
@@ -51,11 +54,16 @@ var defaultControllersComputedProperty = computed(function() {
         }
       }
 
-      var errorMessage = inspect(controller) + '#needs does not include `' + controllerName + '`. To access the ' + controllerName + ' controller from ' + inspect(controller) + ', ' + inspect(controller) + ' should have a `needs` property that is an array of the controllers it has access to.';
+      var errorMessage = inspect(controller) + '#needs does not include `' +
+                         controllerName + '`. To access the ' +
+                         controllerName + ' controller from ' +
+                         inspect(controller) + ', ' +
+                         inspect(controller) +
+                         ' should have a `needs` property that is an array of the controllers it has access to.';
       throw new ReferenceError(errorMessage);
     },
-    setUnknownProperty: function (key, value) {
-      throw new Error("You cannot overwrite the value of `controllers." + key + "` of " + inspect(controller));
+    setUnknownProperty(key, value) {
+      throw new Error('You cannot overwrite the value of `controllers.' + key + '` of ' + inspect(controller));
     }
   };
 });
@@ -63,6 +71,7 @@ var defaultControllersComputedProperty = computed(function() {
 /**
   @class ControllerMixin
   @namespace Ember
+  @public
 */
 ControllerMixin.reopen({
   concatenatedProperties: ['needs'],
@@ -88,7 +97,7 @@ ControllerMixin.reopen({
     this.get('controllers.post'); // instance of App.PostController
     ```
 
-    Given that you have a nested controller (nested resource):
+    Given that you have a nested controller (nested routes):
 
     ```javascript
     App.CommentsNewController = Ember.ObjectController.extend({
@@ -111,20 +120,22 @@ ControllerMixin.reopen({
 
     This is only available for singleton controllers.
 
+    @deprecated Use `Ember.inject.controller()` instead.
     @property {Array} needs
     @default []
+    @public
   */
   needs: [],
 
-  init: function() {
+  init() {
     var needs = get(this, 'needs');
     var length = get(needs, 'length');
 
     if (length > 0) {
       Ember.assert(' `' + inspect(this) + ' specifies `needs`, but does ' +
-                   "not have a container. Please ensure this controller was " +
-                   "instantiated with a container.",
-                   this.container || meta(this, false).descs.controllers !== defaultControllersComputedProperty);
+                   'not have a container. Please ensure this controller was ' +
+                   'instantiated with a container.',
+                   this.container || this.controllers !== defaultControllersComputedProperty);
 
       if (this.container) {
         verifyNeedsDependencies(this, this.container, needs);
@@ -134,16 +145,17 @@ ControllerMixin.reopen({
       get(this, 'controllers');
     }
 
-    this._super.apply(this, arguments);
+    this._super(...arguments);
   },
 
   /**
     @method controllerFor
     @see {Ember.Route#controllerFor}
     @deprecated Use `needs` instead
+    @public
   */
-  controllerFor: function(controllerName) {
-    Ember.deprecate("Controller#controllerFor is deprecated, please use Controller#needs instead");
+  controllerFor(controllerName) {
+    Ember.deprecate('Controller#controllerFor is deprecated, please use Controller#needs instead');
     return controllerFor(get(this, 'container'), controllerName);
   },
 
@@ -155,7 +167,7 @@ ControllerMixin.reopen({
     ```javascript
     App.CommentsController = Ember.ArrayController.extend({
       needs: ['post'],
-      postTitle: function(){
+      postTitle: function() {
         var currentPost = this.get('controllers.post'); // instance of App.PostController
         return currentPost.get('title');
       }.property('controllers.post.title')
@@ -165,6 +177,7 @@ ControllerMixin.reopen({
     @see {Ember.ControllerMixin#needs}
     @property {Object} controllers
     @default null
+    @public
   */
   controllers: defaultControllersComputedProperty
 });

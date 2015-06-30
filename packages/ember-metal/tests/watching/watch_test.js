@@ -1,19 +1,18 @@
 import Ember from 'ember-metal/core';
-import testBoth from 'ember-metal/tests/props_helper';
-import { indexOf } from 'ember-metal/enumerable_utils';
-import { addListener } from "ember-metal/events";
+import { testBoth } from 'ember-metal/tests/props_helper';
+import { addListener } from 'ember-metal/events';
 import {
   watch,
   unwatch,
   destroy
-} from "ember-metal/watching";
+} from 'ember-metal/watching';
 
 var willCount, didCount,
     willKeys, didKeys,
     originalLookup, lookup, Global;
 
 QUnit.module('watch', {
-  setup: function() {
+  setup() {
     willCount = didCount = 0;
     willKeys = [];
     didKeys = [];
@@ -22,7 +21,7 @@ QUnit.module('watch', {
     Ember.lookup = lookup = {};
   },
 
-  teardown: function(){
+  teardown() {
     Ember.lookup = originalLookup;
   }
 });
@@ -39,11 +38,17 @@ function addListeners(obj, keyPath) {
 }
 
 testBoth('watching a computed property', function(get, set) {
-
   var obj = {};
-  Ember.defineProperty(obj, 'foo', Ember.computed(function(keyName, value) {
-    if (value !== undefined) this.__foo = value;
-    return this.__foo;
+  Ember.defineProperty(obj, 'foo', Ember.computed({
+    get: function() {
+      return this.__foo;
+    },
+    set: function(keyName, value) {
+      if (value !== undefined) {
+        this.__foo = value;
+      }
+      return this.__foo;
+    }
   }));
   addListeners(obj, 'foo');
 
@@ -54,7 +59,6 @@ testBoth('watching a computed property', function(get, set) {
 });
 
 testBoth('watching a regular defined property', function(get, set) {
-
   var obj = { foo: 'baz' };
   addListeners(obj, 'foo');
 
@@ -70,7 +74,6 @@ testBoth('watching a regular defined property', function(get, set) {
 });
 
 testBoth('watching a regular undefined property', function(get, set) {
-
   var obj = { };
   addListeners(obj, 'foo');
 
@@ -88,9 +91,8 @@ testBoth('watching a regular undefined property', function(get, set) {
 });
 
 testBoth('watches should inherit', function(get, set) {
-
   var obj = { foo: 'baz' };
-  var objB = Ember.create(obj);
+  var objB = Object.create(obj);
 
   addListeners(obj, 'foo');
   watch(obj, 'foo');
@@ -102,8 +104,7 @@ testBoth('watches should inherit', function(get, set) {
   equal(didCount, 2, 'should have invoked didCount once only');
 });
 
-test("watching an object THEN defining it should work also", function() {
-
+QUnit.test('watching an object THEN defining it should work also', function() {
   var obj = {};
   addListeners(obj, 'foo');
 
@@ -118,9 +119,9 @@ test("watching an object THEN defining it should work also", function() {
 
 });
 
-test("watching a chain then defining the property", function () {
+QUnit.test('watching a chain then defining the property', function () {
   var obj = {};
-  var foo = {bar: 'bar'};
+  var foo = { bar: 'bar' };
   addListeners(obj, 'foo.bar');
   addListeners(foo, 'bar');
 
@@ -135,10 +136,10 @@ test("watching a chain then defining the property", function () {
   equal(didCount, 2, 'should have invoked didChange twice');
 });
 
-test("watching a chain then defining the nested property", function () {
+QUnit.test('watching a chain then defining the nested property', function () {
   var bar = {};
-  var obj = {foo: bar};
-  var baz = {baz: 'baz'};
+  var obj = { foo: bar };
+  var baz = { baz: 'baz' };
   addListeners(obj, 'foo.bar.baz');
   addListeners(baz, 'baz');
 
@@ -154,7 +155,6 @@ test("watching a chain then defining the nested property", function () {
 });
 
 testBoth('watching an object value then unwatching should restore old value', function(get, set) {
-
   var obj = { foo: { bar: { baz: { biff: 'BIFF' } } } };
   addListeners(obj, 'foo.bar.baz.biff');
 
@@ -196,8 +196,7 @@ testBoth('watching a global object that does not yet exist should queue', functi
   lookup['Global'] = Global = null; // reset
 });
 
-test('when watching a global object, destroy should remove chain watchers from the global object', function() {
-
+QUnit.test('when watching a global object, destroy should remove chain watchers from the global object', function() {
   lookup['Global'] = Global = { foo: 'bar' };
   var obj = {};
   addListeners(obj, 'Global.foo');
@@ -206,24 +205,23 @@ test('when watching a global object, destroy should remove chain watchers from t
 
   var meta_Global = Ember.meta(Global);
   var chainNode = Ember.meta(obj).chains._chains.Global._chains.foo;
-  var index = indexOf(meta_Global.chainWatchers.foo, chainNode);
+  var index = meta_Global.chainWatchers.foo.indexOf(chainNode);
 
   equal(meta_Global.watching.foo, 1, 'should be watching foo');
   strictEqual(meta_Global.chainWatchers.foo[index], chainNode, 'should have chain watcher');
 
   destroy(obj);
 
-  index = indexOf(meta_Global.chainWatchers.foo, chainNode);
+  index = meta_Global.chainWatchers.foo.indexOf(chainNode);
   equal(meta_Global.watching.foo, 0, 'should not be watching foo');
   equal(index, -1, 'should not have chain watcher');
 
   lookup['Global'] = Global = null; // reset
 });
 
-test('when watching another object, destroy should remove chain watchers from the other object', function() {
-
+QUnit.test('when watching another object, destroy should remove chain watchers from the other object', function() {
   var objA = {};
-  var objB = {foo: 'bar'};
+  var objB = { foo: 'bar' };
   objA.b = objB;
   addListeners(objA, 'b.foo');
 
@@ -231,14 +229,14 @@ test('when watching another object, destroy should remove chain watchers from th
 
   var meta_objB = Ember.meta(objB);
   var chainNode = Ember.meta(objA).chains._chains.b._chains.foo;
-  var index = indexOf(meta_objB.chainWatchers.foo, chainNode);
+  var index = meta_objB.chainWatchers.foo.indexOf(chainNode);
 
   equal(meta_objB.watching.foo, 1, 'should be watching foo');
   strictEqual(meta_objB.chainWatchers.foo[index], chainNode, 'should have chain watcher');
 
   destroy(objA);
 
-  index = indexOf(meta_objB.chainWatchers.foo, chainNode);
+  index = meta_objB.chainWatchers.foo.indexOf(chainNode);
   equal(meta_objB.watching.foo, 0, 'should not be watching foo');
   equal(index, -1, 'should not have chain watcher');
 });
@@ -246,7 +244,6 @@ test('when watching another object, destroy should remove chain watchers from th
 // TESTS for length property
 
 testBoth('watching "length" property on an object', function(get, set) {
-
   var obj = { length: '26.2 miles' };
   addListeners(obj, 'length');
 
@@ -262,7 +259,6 @@ testBoth('watching "length" property on an object', function(get, set) {
 });
 
 testBoth('watching "length" property on an array', function(get, set) {
-
   var arr = [];
   addListeners(arr, 'length');
 

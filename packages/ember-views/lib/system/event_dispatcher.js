@@ -2,22 +2,18 @@
 @module ember
 @submodule ember-views
 */
-import Ember from "ember-metal/core"; // Ember.assert
+import Ember from 'ember-metal/core'; // Ember.assert
 
-import { get } from "ember-metal/property_get";
-import { set } from "ember-metal/property_set";
-import { isNone } from 'ember-metal/is_none';
-import run from "ember-metal/run_loop";
-import { typeOf } from "ember-metal/utils";
-import { fmt } from "ember-runtime/system/string";
-import EmberObject from "ember-runtime/system/object";
-import jQuery from "ember-views/system/jquery";
-import View from "ember-views/views/view";
-
-var ActionHelper;
-
-//ES6TODO:
-// find a better way to do Ember.View.views without global state
+import { get } from 'ember-metal/property_get';
+import { set } from 'ember-metal/property_set';
+import isNone from 'ember-metal/is_none';
+import run from 'ember-metal/run_loop';
+import { fmt } from 'ember-runtime/system/string';
+import EmberObject from 'ember-runtime/system/object';
+import jQuery from 'ember-views/system/jquery';
+import ActionManager from 'ember-views/system/action_manager';
+import View from 'ember-views/views/view';
+import merge from 'ember-metal/merge';
 
 /**
   `Ember.EventDispatcher` handles delegating browser events to their
@@ -42,6 +38,7 @@ export default EmberObject.extend({
 
     @property events
     @type Object
+    @private
   */
   events: {
     touchstart  : 'touchStart',
@@ -114,6 +111,8 @@ export default EmberObject.extend({
     @property canDispatchToEventManager
     @type boolean
     @default 'true'
+    @since 1.7.0
+    @private
   */
   canDispatchToEventManager: true,
 
@@ -127,12 +126,13 @@ export default EmberObject.extend({
 
     @private
     @method setup
-    @param addedEvents {Hash}
+    @param addedEvents {Object}
   */
-  setup: function(addedEvents, rootElement) {
-    var event, events = get(this, 'events');
+  setup(addedEvents, rootElement) {
+    var event;
+    var events = get(this, 'events');
 
-    jQuery.extend(events, addedEvents || {});
+    merge(events, addedEvents || {});
 
     if (!isNone(rootElement)) {
       set(this, 'rootElement', rootElement);
@@ -169,12 +169,13 @@ export default EmberObject.extend({
     @param {String} event the browser-originated event to listen to
     @param {String} eventName the name of the method to call on the view
   */
-  setupHandler: function(rootElement, event, eventName) {
+  setupHandler(rootElement, event, eventName) {
     var self = this;
+    var viewRegistry = this.container && this.container.lookup('-view-registry:main') || View.views;
 
     rootElement.on(event + '.ember', '.ember-view', function(evt, triggeringManager) {
-      var view = View.views[this.id],
-          result = true;
+      var view = viewRegistry[this.id];
+      var result = true;
 
       var manager = self.canDispatchToEventManager ? self._findNearestEventManager(view, eventName) : null;
 
@@ -188,22 +189,27 @@ export default EmberObject.extend({
     });
 
     rootElement.on(event + '.ember', '[data-ember-action]', function(evt) {
-      //ES6TODO: Needed for ActionHelper (generally not available in ember-views test suite)
-      if (!ActionHelper) { ActionHelper = requireModule("ember-routing-handlebars/helpers/action")["ActionHelper"]; }
+      var actionId = jQuery(evt.currentTarget).attr('data-ember-action');
+      var actions   = ActionManager.registeredActions[actionId];
 
-      var actionId = jQuery(evt.currentTarget).attr('data-ember-action'),
-          action   = ActionHelper.registeredActions[actionId];
-
-      // We have to check for action here since in some cases, jQuery will trigger
+      // We have to check for actions here since in some cases, jQuery will trigger
       // an event on `removeChild` (i.e. focusout) after we've already torn down the
       // action handlers for the view.
-      if (action && action.eventName === eventName) {
-        return action.handler(evt);
+      if (!actions) {
+        return;
+      }
+
+      for (let index = 0, length = actions.length; index < length; index++) {
+        let action = actions[index];
+
+        if (action && action.eventName === eventName) {
+          return action.handler(evt);
+        }
       }
     });
   },
 
-  _findNearestEventManager: function(view, eventName) {
+  _findNearestEventManager(view, eventName) {
     var manager = null;
 
     while (view) {
@@ -216,33 +222,32 @@ export default EmberObject.extend({
     return manager;
   },
 
-  _dispatchEvent: function(object, evt, eventName, view) {
+  _dispatchEvent(object, evt, eventName, view) {
     var result = true;
 
     var handler = object[eventName];
-    if (typeOf(handler) === 'function') {
+    if (typeof handler === 'function') {
       result = run(object, handler, evt, view);
       // Do not preventDefault in eventManagers.
       evt.stopPropagation();
-    }
-    else {
+    } else {
       result = this._bubbleEvent(view, evt, eventName);
     }
 
     return result;
   },
 
-  _bubbleEvent: function(view, evt, eventName) {
-    return run(view, view.handleEvent, eventName, evt);
+  _bubbleEvent(view, evt, eventName) {
+    return run.join(view, view.handleEvent, eventName, evt);
   },
 
-  destroy: function() {
+  destroy() {
     var rootElement = get(this, 'rootElement');
     jQuery(rootElement).off('.ember', '**').removeClass('ember-application');
-    return this._super();
+    return this._super(...arguments);
   },
 
-  toString: function() {
-    return '(EventDisptacher)';
+  toString() {
+    return '(EventDispatcher)';
   }
 });

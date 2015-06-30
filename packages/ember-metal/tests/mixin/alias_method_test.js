@@ -1,73 +1,76 @@
-QUnit.module('Ember.aliasMethod');
+import { get } from 'ember-metal/property_get';
+import {
+  Mixin,
+  mixin,
+  aliasMethod
+} from 'ember-metal/mixin';
+
+QUnit.module('aliasMethod');
 
 function validateAliasMethod(obj) {
   equal(obj.fooMethod(), 'FOO', 'obj.fooMethod()');
   equal(obj.barMethod(), 'FOO', 'obj.barMethod should be a copy of foo');
 }
 
-test('methods of another name are aliased when the mixin is applied', function() {
-
-  var MyMixin = Ember.Mixin.create({
-    fooMethod: function() { return 'FOO'; },
-    barMethod: Ember.aliasMethod('fooMethod')
+QUnit.test('methods of another name are aliased when the mixin is applied', function() {
+  var MyMixin = Mixin.create({
+    fooMethod() { return 'FOO'; },
+    barMethod: aliasMethod('fooMethod')
   });
 
   var obj = MyMixin.apply({});
   validateAliasMethod(obj);
 });
 
-test('should follow aliasMethods all the way down', function() {
-  var MyMixin = Ember.Mixin.create({
-    bar: Ember.aliasMethod('foo'), // put first to break ordered iteration
-    baz: function() { return 'baz'; },
-    foo: Ember.aliasMethod('baz')
+QUnit.test('should follow aliasMethods all the way down', function() {
+  var MyMixin = Mixin.create({
+    bar: aliasMethod('foo'), // put first to break ordered iteration
+    baz() { return 'baz'; },
+    foo: aliasMethod('baz')
   });
 
   var obj = MyMixin.apply({});
-  equal(Ember.get(obj, 'bar')(), 'baz', 'should have followed aliasMethods');
+  equal(get(obj, 'bar')(), 'baz', 'should have followed aliasMethods');
 });
 
-test('should alias methods from other dependent mixins', function() {
-
-  var BaseMixin = Ember.Mixin.create({
-    fooMethod: function() { return 'FOO'; }
+QUnit.test('should alias methods from other dependent mixins', function() {
+  var BaseMixin = Mixin.create({
+    fooMethod() { return 'FOO'; }
   });
 
-  var MyMixin = Ember.Mixin.create(BaseMixin, {
-    barMethod: Ember.aliasMethod('fooMethod')
+  var MyMixin = Mixin.create(BaseMixin, {
+    barMethod: aliasMethod('fooMethod')
   });
 
   var obj = MyMixin.apply({});
   validateAliasMethod(obj);
 });
 
-test('should alias methods from other mixins applied at same time', function() {
-
-  var BaseMixin = Ember.Mixin.create({
-    fooMethod: function() { return 'FOO'; }
+QUnit.test('should alias methods from other mixins applied at same time', function() {
+  var BaseMixin = Mixin.create({
+    fooMethod() { return 'FOO'; }
   });
 
-  var MyMixin = Ember.Mixin.create({
-    barMethod: Ember.aliasMethod('fooMethod')
+  var MyMixin = Mixin.create({
+    barMethod: aliasMethod('fooMethod')
   });
 
-  var obj = Ember.mixin({}, BaseMixin, MyMixin);
+  var obj = mixin({}, BaseMixin, MyMixin);
   validateAliasMethod(obj);
 });
 
-test('should alias methods from mixins already applied on object', function() {
-
-  var BaseMixin = Ember.Mixin.create({
-    quxMethod: function() { return 'qux'; }
+QUnit.test('should alias methods from mixins already applied on object', function() {
+  var BaseMixin = Mixin.create({
+    quxMethod() { return 'qux'; }
   });
 
-  var MyMixin = Ember.Mixin.create({
-    bar: Ember.aliasMethod('foo'),
-    barMethod: Ember.aliasMethod('fooMethod')
+  var MyMixin = Mixin.create({
+    bar: aliasMethod('foo'),
+    barMethod: aliasMethod('fooMethod')
   });
 
   var obj = {
-    fooMethod: function() { return 'FOO'; }
+    fooMethod() { return 'FOO'; }
   };
 
   BaseMixin.apply(obj);

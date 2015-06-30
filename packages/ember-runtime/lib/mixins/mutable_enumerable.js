@@ -1,7 +1,6 @@
-import { forEach } from "ember-metal/enumerable_utils";
-import Enumerable from "ember-runtime/mixins/enumerable";
-import {Mixin, required} from "ember-metal/mixin";
-import {beginPropertyChanges, endPropertyChanges} from "ember-metal/property_events";
+import Enumerable from 'ember-runtime/mixins/enumerable';
+import { Mixin } from 'ember-metal/mixin';
+import {beginPropertyChanges, endPropertyChanges} from 'ember-metal/property_events';
 
 /**
 @module ember
@@ -46,6 +45,7 @@ import {beginPropertyChanges, endPropertyChanges} from "ember-metal/property_eve
   @class MutableEnumerable
   @namespace Ember
   @uses Ember.Enumerable
+  @public
 */
 export default Mixin.create(Enumerable, {
 
@@ -62,8 +62,9 @@ export default Mixin.create(Enumerable, {
     @method addObject
     @param {Object} object The object to add to the enumerable.
     @return {Object} the passed object
+    @public
   */
-  addObject: required(Function),
+  addObject: null,
 
   /**
     Adds each object in the passed enumerable to the receiver.
@@ -71,10 +72,11 @@ export default Mixin.create(Enumerable, {
     @method addObjects
     @param {Ember.Enumerable} objects the objects to add.
     @return {Object} receiver
+    @public
   */
-  addObjects: function(objects) {
+  addObjects(objects) {
     beginPropertyChanges(this);
-    forEach(objects, function(obj) { this.addObject(obj); }, this);
+    objects.forEach((obj) => this.addObject(obj));
     endPropertyChanges(this);
     return this;
   },
@@ -92,8 +94,9 @@ export default Mixin.create(Enumerable, {
     @method removeObject
     @param {Object} object The object to remove from the enumerable.
     @return {Object} the passed object
+    @public
   */
-  removeObject: required(Function),
+  removeObject: null,
 
 
   /**
@@ -102,8 +105,9 @@ export default Mixin.create(Enumerable, {
     @method removeObjects
     @param {Ember.Enumerable} objects the objects to remove
     @return {Object} receiver
+    @public
   */
-  removeObjects: function(objects) {
+  removeObjects(objects) {
     beginPropertyChanges(this);
     for (var i = objects.length - 1; i >= 0; i--) {
       this.removeObject(objects[i]);

@@ -1,19 +1,26 @@
 /*global __fail__*/
 
-import Ember from "ember-metal/core";
-import EmberError from "ember-metal/error";
-import Logger from "ember-metal/logger";
+import Ember from 'ember-metal/core';
+import isEnabled, { FEATURES } from 'ember-metal/features';
+import EmberError from 'ember-metal/error';
+import Logger from 'ember-metal/logger';
+import deprecationManager, { deprecationLevels } from 'ember-debug/deprecation-manager';
+
+import environment from 'ember-metal/environment';
 
 /**
-Ember Debug
-
 @module ember
 @submodule ember-debug
 */
 
 /**
 @class Ember
+@public
 */
+
+function isPlainFunction(test) {
+  return typeof test === 'function' && test.PrototypeMixin === undefined;
+}
 
 /**
   Define an assertion that will throw an exception if the condition is not
@@ -31,12 +38,22 @@ Ember Debug
   @method assert
   @param {String} desc A description of the assertion. This will become
     the text of the Error thrown if the assertion fails.
-  @param {Boolean} test Must be truthy for the assertion to pass. If
-    falsy, an exception will be thrown.
+  @param {Boolean|Function} test Must be truthy for the assertion to pass. If
+    falsy, an exception will be thrown. If this is a function, it will be executed and
+    its return value will be used as condition.
+  @public
 */
 Ember.assert = function(desc, test) {
-  if (!test) {
-    throw new EmberError("Assertion Failed: " + desc);
+  var throwAssertion;
+
+  if (isPlainFunction(test)) {
+    throwAssertion = !test();
+  } else {
+    throwAssertion = !test;
+  }
+
+  if (throwAssertion) {
+    throw new EmberError('Assertion Failed: ' + desc);
   }
 };
 
@@ -49,11 +66,14 @@ Ember.assert = function(desc, test) {
   @param {String} message A warning to display.
   @param {Boolean} test An optional boolean. If falsy, the warning
     will be displayed.
+  @public
 */
 Ember.warn = function(message, test) {
   if (!test) {
-    Logger.warn("WARNING: "+message);
-    if ('trace' in Logger) Logger.trace();
+    Logger.warn('WARNING: '+message);
+    if ('trace' in Logger) {
+      Logger.trace();
+    }
   }
 };
 
@@ -67,9 +87,10 @@ Ember.warn = function(message, test) {
 
   @method debug
   @param {String} message A debug message to display.
+  @public
 */
 Ember.debug = function(message) {
-  Logger.debug("DEBUG: "+message);
+  Logger.debug('DEBUG: '+message);
 };
 
 /**
@@ -79,21 +100,58 @@ Ember.debug = function(message) {
 
   @method deprecate
   @param {String} message A description of the deprecation.
-  @param {Boolean} test An optional boolean. If falsy, the deprecation
-    will be displayed.
+  @param {Boolean|Function} test An optional boolean. If falsy, the deprecation
+    will be displayed. If this is a function, it will be executed and its return
+    value will be used as condition.
+  @param {Object} options An optional object that can be used to pass
+    in a `url` to the transition guide on the emberjs.com website, and a unique
+    `id` for this deprecation. The `id` can be used by Ember debugging tools
+    to change the behavior (raise, log or silence) for that specific deprecation.
+    The `id` should be namespaced by dots, e.g. "view.helper.select".
+  @public
 */
-Ember.deprecate = function(message, test) {
-  if (test) { return; }
+Ember.deprecate = function(message, test, options) {
+  if (Ember.ENV.RAISE_ON_DEPRECATION) {
+    deprecationManager.setDefaultLevel(deprecationLevels.RAISE);
+  }
+  if (deprecationManager.getLevel(options && options.id) === deprecationLevels.SILENCE) {
+    return;
+  }
 
-  if (Ember.ENV.RAISE_ON_DEPRECATION) { throw new EmberError(message); }
+  var noDeprecation;
+
+  if (isPlainFunction(test)) {
+    noDeprecation = test();
+  } else {
+    noDeprecation = test;
+  }
+
+  if (noDeprecation) { return; }
+
+  if (options && options.id) {
+    message = message + ` [deprecation id: ${options.id}]`;
+  }
+
+  if (deprecationManager.getLevel(options && options.id) === deprecationLevels.RAISE) {
+    throw new EmberError(message);
+  }
 
   var error;
 
   // When using new Error, we can't do the arguments check for Chrome. Alternatives are welcome
   try { __fail__.fail(); } catch (e) { error = e; }
 
+  if (arguments.length === 3) {
+    Ember.assert('options argument to Ember.deprecate should be an object', options && typeof options === 'object');
+    if (options.url) {
+      message += ' See ' + options.url + ' for more details.';
+    }
+  }
+
   if (Ember.LOG_STACKTRACE_ON_DEPRECATION && error.stack) {
-    var stack, stackStr = '';
+    var stack;
+    var stackStr = '';
+
     if (error['arguments']) {
       // Chrome
       stack = error.stack.replace(/^\s+at\s+/gm, '').
@@ -106,11 +164,11 @@ Ember.deprecate = function(message, test) {
                           replace(/^\(/gm, '{anonymous}(').split('\n');
     }
 
-    stackStr = "\n    " + stack.slice(2).join("\n    ");
+    stackStr = '\n    ' + stack.slice(2).join('\n    ');
     message = message + stackStr;
   }
 
-  Logger.warn("DEPRECATION: "+message);
+  Logger.warn('DEPRECATION: '+message);
 };
 
 
@@ -132,6 +190,7 @@ Ember.deprecate = function(message, test) {
   @param {String} message A description of the deprecation.
   @param {Function} func The new function called to replace its deprecated counterpart.
   @return {Function} a new function that wrapped the original function with a deprecation warning
+  @private
 */
 Ember.deprecateFunc = function(message, func) {
   return function() {
@@ -158,24 +217,59 @@ Ember.deprecateFunc = function(message, func) {
   @method runInDebug
   @param {Function} func The function to be executed.
   @since 1.5.0
+  @public
 */
 Ember.runInDebug = function(func) {
   func();
 };
 
-// Inform the developer about the Ember Inspector if not installed.
+/**
+  Will call `Ember.warn()` if ENABLE_ALL_FEATURES, ENABLE_OPTIONAL_FEATURES, or
+  any specific FEATURES flag is truthy.
+
+  This method is called automatically in debug canary builds.
+
+  @private
+  @method _warnIfUsingStrippedFeatureFlags
+  @return {void}
+*/
+export function _warnIfUsingStrippedFeatureFlags(FEATURES, featuresWereStripped) {
+  if (featuresWereStripped) {
+    Ember.warn('Ember.ENV.ENABLE_ALL_FEATURES is only available in canary builds.', !Ember.ENV.ENABLE_ALL_FEATURES);
+    Ember.warn('Ember.ENV.ENABLE_OPTIONAL_FEATURES is only available in canary builds.', !Ember.ENV.ENABLE_OPTIONAL_FEATURES);
+
+    for (var key in FEATURES) {
+      if (FEATURES.hasOwnProperty(key) && key !== 'isEnabled') {
+        Ember.warn('FEATURE["' + key + '"] is set as enabled, but FEATURE flags are only available in canary builds.', !FEATURES[key]);
+      }
+    }
+  }
+}
+
 if (!Ember.testing) {
-  var isFirefox = typeof InstallTrigger !== 'undefined';
-  var isChrome = !!window.chrome && !window.opera;
+  // Complain if they're using FEATURE flags in builds other than canary
+  FEATURES['features-stripped-test'] = true;
+  var featuresWereStripped = true;
+
+  if (isEnabled('features-stripped-test')) {
+    featuresWereStripped = false;
+  }
+
+  delete FEATURES['features-stripped-test'];
+  _warnIfUsingStrippedFeatureFlags(Ember.ENV.FEATURES, featuresWereStripped);
+
+  // Inform the developer about the Ember Inspector if not installed.
+  var isFirefox = environment.isFirefox;
+  var isChrome = environment.isChrome;
 
   if (typeof window !== 'undefined' && (isFirefox || isChrome) && window.addEventListener) {
-    window.addEventListener("load", function() {
+    window.addEventListener('load', function() {
       if (document.documentElement && document.documentElement.dataset && !document.documentElement.dataset.emberExtension) {
         var downloadURL;
 
-        if(isChrome) {
+        if (isChrome) {
           downloadURL = 'https://chrome.google.com/webstore/detail/ember-inspector/bmdblncegkenkacieihfhpjfppoconhi';
-        } else if(isFirefox) {
+        } else if (isFirefox) {
           downloadURL = 'https://addons.mozilla.org/en-US/firefox/addon/ember-inspector/';
         }
 
@@ -183,4 +277,24 @@ if (!Ember.testing) {
       }
     }, false);
   }
+}
+
+Ember.Debug = {
+  _addDeprecationLevel(id, level) {
+    deprecationManager.setLevel(id, level);
+  },
+  _deprecationLevels: deprecationLevels
+};
+
+/*
+  We are transitioning away from `ember.js` to `ember.debug.js` to make
+  it much clearer that it is only for local development purposes.
+
+  This flag value is changed by the tooling (by a simple string replacement)
+  so that if `ember.js` (which must be output for backwards compat reasons) is
+  used a nice helpful warning message will be printed out.
+*/
+export var runningNonEmberDebugJS = false;
+if (runningNonEmberDebugJS) {
+  Ember.warn('Please use `ember.debug.js` instead of `ember.js` for development and debugging.');
 }

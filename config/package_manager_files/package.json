@@ -5,9 +5,19 @@
   "keywords": [
     "ember"
   ],
-  "main": "./ember.js",
+  "main": "./ember.debug.js",
   "dependencies": {
-    "jquery": ">=1.7.0 <= 2.1.0",
-    "handlebars": ">= 1.0.0 < 2.0.0"
+    "jquery": ">=1.7.0 < 2.2.0"
+  },
+  "jspm": {
+    "main": "ember.debug",
+    "shim": {
+      "ember.prod": { "deps": ["jquery"], "exports": "Ember" },
+      "ember.debug": { "deps": ["jquery"], "exports": "Ember" }
+    },
+    "registry": "jspm",
+    "dependencies": {
+      "jquery": "github:components/jquery@^2.1.3"
+    }
   }
 }

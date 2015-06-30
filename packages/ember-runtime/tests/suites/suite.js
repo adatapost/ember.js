@@ -1,13 +1,10 @@
-import EmberObject from "ember-runtime/system/object";
-import { required } from "ember-metal/mixin";
+import EmberObject from 'ember-runtime/system/object';
 import {
-  guidFor,
-  generateGuid
-} from "ember-metal/utils";
-import { get } from "ember-metal/property_get";
-import { forEach } from "ember-metal/enumerable_utils";
+  guidFor
+} from 'ember-metal/utils';
+import { get } from 'ember-metal/property_get';
 
-/**
+/*
   @class
   A Suite can be used to define a reusable set of unit tests that can be
   applied to any object.  Suites are most useful for defining tests that
@@ -16,13 +13,12 @@ import { forEach } from "ember-metal/enumerable_utils";
   own code to verify compliance.
 
   To define a suite, you need to define the tests themselves as well as a
-  callback API implementors can use to tie your tests to thier specific class.
+  callback API implementers can use to tie your tests to their specific class.
 
   ## Defining a Callback API
 
   To define the callback API, just extend this class and add your properties
-  or methods that must be provided.  Use Ember.required() placeholders for
-  any properties that implementors must define themselves.
+  or methods that must be provided.
 
   ## Defining Unit Tests
 
@@ -41,17 +37,19 @@ import { forEach } from "ember-metal/enumerable_utils";
 */
 var Suite = EmberObject.extend({
 
-  /**
+  /*
+    __Required.__ You must implement this method to apply this mixin.
+
     Define a name for these tests - all modules are prefixed w/ it.
 
     @type String
   */
-  name: required(String),
+  name: null,
 
-  /**
+  /*
     Invoked to actually run the test - overridden by mixins
   */
-  run: function() {}
+  run() {}
 
 });
 
@@ -59,58 +57,70 @@ Suite.reopenClass({
 
   plan: null,
 
-  run: function() {
+  run() {
     var C = this;
     return new C().run();
   },
 
-  module: function(desc, opts) {
-    if (!opts) opts = {};
-    var setup = opts.setup, teardown = opts.teardown;
+  module(desc, opts) {
+    if (!opts) {
+      opts = {};
+    }
+
+    var setup = opts.setup;
+    var teardown = opts.teardown;
     this.reopen({
-      run: function() {
-        this._super();
-        var title = get(this, 'name')+': '+desc, ctx = this;
+      run() {
+        this._super.apply(this, arguments);
+        var title = get(this, 'name')+': '+desc;
+        var ctx = this;
         QUnit.module(title, {
-          setup: function() {
-            if (setup) setup.call(ctx);
+          setup() {
+            if (setup) {
+              setup.call(ctx);
+            }
           },
 
-          teardown: function() {
-            if (teardown) teardown.call(ctx);
+          teardown() {
+            if (teardown) {
+              teardown.call(ctx);
+            }
           }
         });
       }
     });
   },
 
-  test: function(name, func) {
+  test(name, func) {
     this.reopen({
-      run: function() {
-        this._super();
+      run() {
+        this._super.apply(this, arguments);
         var ctx = this;
-        if (!func) test(name); // output warning
-        else test(name, function() { func.call(ctx); });
+
+        if (!func) {
+          QUnit.test(name); // output warning
+        } else {
+          QUnit.test(name, function() { func.call(ctx); });
+        }
       }
     });
   },
 
   // convert to guids to minimize logging.
-  same: function(actual, exp, message) {
+  same(actual, exp, message) {
     actual = (actual && actual.map) ? actual.map(function(x) { return guidFor(x); }) : actual;
     exp = (exp && exp.map) ? exp.map(function(x) { return guidFor(x); }) : exp;
     return deepEqual(actual, exp, message);
   },
 
   // easy way to disable tests
-  notest: function() {},
+  notest() {},
 
-  importModuleTests: function(builder) {
-    var self = this;
+  importModuleTests(builder) {
     this.module(builder._module);
 
-    forEach(builder._tests, function(descAndFunc) {
-      self.test.apply(self, descAndFunc);
+    builder._tests.forEach((descAndFunc) => {
+      this.test.apply(this, descAndFunc);
     });
   }
 });
@@ -119,13 +129,13 @@ var SuiteModuleBuilder = EmberObject.extend({
   _module: null,
   _tests: null,
 
-  init: function(){
+  init() {
     this._tests = [];
   },
 
-  module: function(name) { this._module = name; },
+  module(name) { this._module = name; },
 
-  test: function(name, func) {
+  test(name, func) {
     this._tests.push([name, func]);
   }
 });

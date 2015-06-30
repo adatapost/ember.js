@@ -5,6 +5,86 @@ for a detailed explanation.
 
 ## Feature Flags
 
+* `ember-libraries-isregistered`
+
+  Add `isRegistered` to `Ember.libraries`. This convenience method checks whether
+  a library is registered with Ember or not.
+
+* `ember-routing-core-outlet`
+
+  Provides a non-virtual version of OutletView named
+  CoreOutletView. You would use CoreOutletView just like you're use
+  OutletView: by extending it with whatever behavior you want and then
+  passing it to the `{{outlet}}` helper's `view` property.
+
+  The only difference between them is that OutletView has no element
+  of its own (it is a "virtual" view), whereas CoreOutletView has an
+  element.
+
+* `ember-application-visit`
+
+  Provides an API for creating an application instance and specifying
+  an initial URL that it should route to. This is useful for testing
+  (you can have multiple instances of an app without having to run
+  serially and call `reset()` each time), as well as being critical to
+  for FastBoot.
+
+* `ember-application-instance-initializers`
+
+  Splits apart initializers into two phases:
+
+  * Boot-time Initializers that receive a registry, and use it to set up
+    code structures
+  * Instance Initializers that receive an application instance, and use
+    it to set up application state per run of the application.
+
+  In FastBoot, each request will have its own run of the application,
+  and will only need to run the instance initializers.
+
+  In the future, tests will also be able to use this differentiation to
+  run just the instance initializers per-test.
+
+  With this change, `App.initializer` becomes a "boot-time" initializer,
+  and issues a deprecation warning if instances are accessed.
+
+  Apps should migrate any initializers that require instances to the new
+  `App.instanceInitializer` API.
+
+* `ember-application-initializer-context`
+
+  Sets the context of the initializer function to its object instead of the
+  global object.
+
+  Added in [#10179](https://github.com/emberjs/ember.js/pull/10179).
+
+* `ember-testing-checkbox-helpers`
+
+  Add `check` and `uncheck` test helpers.
+
+  `check`:
+
+  Checks a checkbox. Ensures the presence of the `checked` attribute
+
+  Example:
+
+  ```javascript
+  check('#remember-me').then(function() {
+    // assert something
+  });
+  ```
+
+  `uncheck`:
+
+  Unchecks a checkbox. Ensures the absence of the `checked` attribute
+
+  Example:
+
+  ```javascript
+  uncheck('#remember-me').then(function() {
+    // assert something
+  });
+  ```
+
 * `ember-routing-named-substates`
 
   Add named substates; e.g. when resolving a `loading` or `error`
@@ -18,71 +98,225 @@ for a detailed explanation.
 
   Added in [#3655](https://github.com/emberjs/ember.js/pull/3655).
 
-* `ember-handlebars-caps-lookup`
-  Forces Handlebars values starting with capital letters, like `{{CONSTANT}}`,
-  to always be looked up on `Ember.lookup`. Previously, these values would be
-  looked up on the controller in certain cases.
+* `ember-htmlbars-component-generation`
 
-  Added in [#3218](https://github.com/emberjs/ember.js/pull/3218)
+  Enables HTMLBars compiler to interpret `<x-foo></x-foo>` as a component
+  invocation (instead of a standard HTML5 style element).
 
-* `composable-computed-properties`
+* `ember-htmlbars-inline-if-helper`
 
-  This feature allows you to combine (compose) different computed
-  properties together. So it gives you a really nice "functional
-  programming" like syntax to deal with complex expressions.
+  Enables the use of the if helper in inline form. The truthy
+  and falsy values are passed as params, instead of using the block form.
 
-  Added in [#3696](https://github.com/emberjs/ember.js/pull/3696).
+  Added in [#9718](https://github.com/emberjs/ember.js/pull/9718).
 
-* `query-params-new`
+* `ember-htmlbars-attribute-syntax`
 
-  Add query params support to the ember router. This is a rewrite of a
-  previous attempt at an API for query params. You can define query
-  param properties on route-driven controllers with the `queryParams`
-  property, and any changes to those properties will cause the URL
-  to update, and in the other direction, any URL changes to the query
-  params will cause those controller properties to update.
+  Adds the `class="{{color}}"` syntax to Ember HTMLBars templates.
+  Works with arbitrary attributes and properties.
 
-  Added in [#4008](https://github.com/emberjs/ember.js/pull/4008).
+  Added in [#9721](https://github.com/emberjs/ember.js/pull/9721).
 
-* `ember-routing-will-change-hooks`
-  Finer-grained `willTransition`-esque actions:
+* `ember-htmlbars-each-in`
 
-  - `willLeave`: fires on routes that will no longer be active after
-    the transition
-  - `willChangeModel`: fires on routes that will still be active
-    but will re-resolve their models
+  Adds a helper for enumerating over the properties of an object in a
+  Handlebars templates. For example, given this data:
 
-  Both of these hooks act like willTransition in the sense that they
-  give you an opportunity to abort the transition before it happens.
-  Common use cases include animating things away or prompting to user
-  to deal with unsaved changes.
+  ```javascript
+  {
+    "Item 1": 1234,
+    "Item 2": 3456
+  }
+  ```
 
-  Added in [#4760](https://github.com/emberjs/ember.js/pull/4760)
+  And this template:
 
-* `ember-metal-is-present`
+  ```handlebars
+  {{#each-in items as |key value|}}
+    <p>{{key}}: {{value}}</p>
+  {{/each-in}}
+  ```
 
-  Adds `Ember.isPresent` as the inverse of `Ember.isBlank`. This convenience
-  method can lead to more semantic and clearer code.
+  The following output would be produced:
 
-  Added in [#5136](https://github.com/emberjs/ember.js/pull/5136)
+  ```html
+  <p>Item 1: 1234</p>
+  <p>Item 2: 3456</p>
+  ```
 
-* `property-brace-expansion-improvement`
+* `ember-routing-transitioning-classes`
 
-  Property brace expansion now allows multiple sets of braces to be used,
-  as well as not restricting their location in the string.
+  Disables eager URL updates during slow transitions in favor of new CSS
+  classes added to `link-to`s (in addition to `active` class):
 
-  Added in [#4617](https://github.com/emberjs/ember.js/pull/4617)
+  - `ember-transitioning-in`: link-to is not currently active, but will be
+    when the current underway (slow) transition completes.
+  - `ember-transitioning-out`: link-to is currently active, but will no longer
+    be active when the current underway (slow) transition completes.
 
-* `ember-runtime-proxy-mixin`
+  Added in [#9919](https://github.com/emberjs/ember.js/pull/9919)
 
-  Makes the logic behind `Ember.ObjectProxy` into a `Mixin` that can be used when you cannot
-  inherit from `Ember.ObjectProxy` directly.
+* `ember-metal-stream`
 
-  Added in [#5156](https://github.com/emberjs/ember.js/pull/5156)
+  Exposes the basic internal stream implementation as `Ember.Stream`.
 
-* `ember-routing-multi-current-when`
+  Added in [#9693](https://github.com/emberjs/ember.js/pull/9693)
 
-  Allows the `link-to` helper's currentWhen property to accept multiple routes
-  using a `|` delimiter, for more control over a link's active state.
+* `ember-htmlbars-each-with-index`
 
-  Added in [#3673](https://github.com/emberjs/ember.js/pull/3673)
+  Adds an optional second parameter to `{{each}}` block parameters that is the index of the item.
+
+  For example,
+
+  ```handlebars
+  <ul>
+    {{#each people as |person index|}}
+       <li>{{index}}) {{person.name}}</li>
+    {{/each}}
+  </ul>
+  ```
+
+  Added in [#10160](https://github.com/emberjs/ember.js/pull/10160)
+
+* `ember-router-willtransition`
+
+  Adds `willTransition` hook to `Ember.Router`. For example,
+
+  ```js
+  Ember.Router.extend({
+    onBeforeTransition: function(transition) {
+      //doSomething
+    }.on('willTransition')
+  });
+  ```
+
+  Added in [#10274](https://github.com/emberjs/ember.js/pull/10274)
+
+* `ember-views-component-block-info`
+
+  Adds a couple utility methods to detect block/block param presence:
+
+  * `hasBlock`
+
+    Adds the ability to easily detect if a component was invoked with or
+    without a block.
+
+    Example (`hasBlock` will be `false`):
+
+    ```hbs
+    {{! templates/application.hbs }}
+
+    {{foo-bar}}
+
+    {{! templates/components/foo-bar.js }}
+    {{#if hasBlock}}
+      This will not be printed, because no block was provided
+    {{/if}}
+    ```
+
+    Example (`hasBlock` will be `true`):
+
+    ```hbs
+    {{! templates/application.hbs }}
+
+    {{#foo-bar}}
+      Hi!
+    {{/foo-bar}}
+
+    {{! templates/components/foo-bar.js }}
+    {{#if hasBlock}}
+      This will be printed because a block was provided
+      {{yield}}
+    {{/if}}
+    ```
+
+  * `hasBlockParams`
+
+  Adds the ability to easily detect if a component was invoked with block parameter
+  supplied.
+
+  Example (`hasBlockParams` will be `false`):
+
+  ```hbs
+  {{! templates/application.hbs }}
+
+  {{#foo-bar}}
+    Hi!.
+  {{/foo-bar}}
+
+  {{! templates/components/foo-bar.js }}
+  {{#if hasBlockParams}}
+    {{yield this}}
+    This will not be printed, because no block was provided
+  {{/if}}
+  ```
+
+  Example (`hasBlockParams` will be `true`):
+
+  ```hbs
+  {{! templates/application.hbs }}
+
+  {{#foo-bar as |foo|}}
+    Hi!
+  {{/foo-bar}}
+
+  {{! templates/components/foo-bar.js }}
+  {{#if hasBlockParams}}
+    {{yield this}}
+    This will be printed because a block was provided
+  {{/if}}
+  ```
+
+  Addd in [#10461](https://github.com/emberjs/ember.js/pull/10461)
+
+* `ember-routing-htmlbars-improved-actions`
+
+  Using the `(action` subexpression, allow for the creation of closure-wrapped
+  callbacks to pass into downstream components. The returned value of
+  the `(action` subexpression (or `submit={{action 'save'}}` style subexpression)
+  is a function. mut objects expose an `INVOKE` interface making them
+  compatible with action subexpressions.
+
+  Per RFC [#50](https://github.com/emberjs/rfcs/pull/50)
+
+* `ember-htmlbars-get-helper`
+
+  The Syntax: `{{get object path}}`
+
+  A new keyword/helper that can be used to allow your object and/or key
+  values to be dynamic.
+
+  Example:
+  ```js
+
+  context = {
+    displayedPropertyTitle: 'First Name',
+    displayedPropertyKey: 'firstName'
+  };
+  ```
+
+  ```hbs
+  <h2>{{displayedPropertyTitle}}</h2>
+
+  <ul>
+  {{#each people as |person|}}
+    <li>{{get person displayedPropertyKey}}</li>
+  {{/each}}
+  </ul>
+  ```
+
+  This allows the template to provide `displayedPropertyTitle`
+  and `displayedPropertyKey` to render a list for a single property
+  for each person.. E.g. a list of all `firstNames`, or `lastNames`, or `ages`.
+
+  Addd in [#11196](https://github.com/emberjs/ember.js/pull/11196)
+
+* `ember-htmlbars-helper`
+
+  Implements RFC https://github.com/emberjs/rfcs/pull/53, a public helper
+  api.
+
+* `ember-htmlbars-dashless-helpers`
+
+  Implements RFC https://github.com/emberjs/rfcs/pull/58, adding support for
+  dashless helpers.

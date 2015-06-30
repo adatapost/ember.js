@@ -1,5 +1,4 @@
-import { get } from "ember-metal/property_get";
-import { forEach } from "ember-metal/enumerable_utils";
+import { get } from 'ember-metal/property_get';
 
 var RETAIN = 'r';
 var INSERT = 'i';
@@ -16,6 +15,7 @@ export default TrackedArray;
   @namespace Ember
   @param {Array} [items=[]] The array to be tracked.  This is used just to get
   the initial items for the starting state of retain:n.
+  @private
 */
 function TrackedArray(items) {
   if (arguments.length < 1) { items = []; }
@@ -41,20 +41,17 @@ TrackedArray.prototype = {
     @method addItems
     @param index
     @param newItems
+    @private
   */
-  addItems: function (index, newItems) {
+  addItems(index, newItems) {
     var count = get(newItems, 'length');
     if (count < 1) { return; }
 
-    var match = this._findArrayOperation(index),
-        arrayOperation = match.operation,
-        arrayOperationIndex = match.index,
-        arrayOperationRangeStart = match.rangeStart,
-        composeIndex,
-        splitIndex,
-        splitItems,
-        splitArrayOperation,
-        newArrayOperation;
+    var match = this._findArrayOperation(index);
+    var arrayOperation = match.operation;
+    var arrayOperationIndex = match.index;
+    var arrayOperationRangeStart = match.rangeStart;
+    var composeIndex, newArrayOperation;
 
     newArrayOperation = new ArrayOperation(INSERT, count, newItems);
 
@@ -82,16 +79,15 @@ TrackedArray.prototype = {
     @method removeItems
     @param index
     @param count
+    @private
   */
-  removeItems: function (index, count) {
+  removeItems(index, count) {
     if (count < 1) { return; }
 
-    var match = this._findArrayOperation(index),
-        arrayOperation = match.operation,
-        arrayOperationIndex = match.index,
-        arrayOperationRangeStart = match.rangeStart,
-        newArrayOperation,
-        composeIndex;
+    var match = this._findArrayOperation(index);
+    var arrayOperationIndex = match.index;
+    var arrayOperationRangeStart = match.rangeStart;
+    var newArrayOperation, composeIndex;
 
     newArrayOperation = new ArrayOperation(DELETE, count);
     if (!match.split) {
@@ -120,12 +116,13 @@ TrackedArray.prototype = {
 
     @method apply
     @param {Function} callback
+    @private
   */
-  apply: function (callback) {
-    var items = [],
-        offset = 0;
+  apply(callback) {
+    var items = [];
+    var offset = 0;
 
-    forEach(this._operations, function (arrayOperation, operationIndex) {
+    this._operations.forEach((arrayOperation, operationIndex) => {
       callback(arrayOperation.items, offset, arrayOperation.type, operationIndex);
 
       if (arrayOperation.type !== DELETE) {
@@ -146,13 +143,11 @@ TrackedArray.prototype = {
     should be returned.
     @private
   */
-  _findArrayOperation: function (index) {
-    var arrayOperationIndex,
-        len,
-        split = false,
-        arrayOperation,
-        arrayOperationRangeStart,
-        arrayOperationRangeEnd;
+  _findArrayOperation(index) {
+    var split = false;
+    var arrayOperationIndex, arrayOperation,
+        arrayOperationRangeStart, arrayOperationRangeEnd,
+        len;
 
     // OPTIMIZE: we could search these faster if we kept a balanced tree.
     // find leftmost arrayOperation to the right of `index`
@@ -176,7 +171,7 @@ TrackedArray.prototype = {
     return new ArrayOperationMatch(arrayOperation, arrayOperationIndex, split, arrayOperationRangeStart);
   },
 
-  _split: function (arrayOperationIndex, splitIndex, newArrayOperation) {
+  _split(arrayOperationIndex, splitIndex, newArrayOperation) {
     var arrayOperation = this._operations[arrayOperationIndex];
     var splitItems = arrayOperation.items.slice(splitIndex);
     var splitArrayOperation = new ArrayOperation(arrayOperation.type, splitItems.length, splitItems);
@@ -189,17 +184,17 @@ TrackedArray.prototype = {
   },
 
   // see SubArray for a better implementation.
-  _composeInsert: function (index) {
-    var newArrayOperation = this._operations[index],
-        leftArrayOperation = this._operations[index-1], // may be undefined
-        rightArrayOperation = this._operations[index+1], // may be undefined
-        leftOp = leftArrayOperation && leftArrayOperation.type,
-        rightOp = rightArrayOperation && rightArrayOperation.type;
+  _composeInsert(index) {
+    var newArrayOperation = this._operations[index];
+    var leftArrayOperation = this._operations[index-1]; // may be undefined
+    var rightArrayOperation = this._operations[index+1]; // may be undefined
+    var leftOp = leftArrayOperation && leftArrayOperation.type;
+    var rightOp = rightArrayOperation && rightArrayOperation.type;
 
     if (leftOp === INSERT) {
-        // merge left
-        leftArrayOperation.count += newArrayOperation.count;
-        leftArrayOperation.items = leftArrayOperation.items.concat(newArrayOperation.items);
+      // merge left
+      leftArrayOperation.count += newArrayOperation.count;
+      leftArrayOperation.items = leftArrayOperation.items.concat(newArrayOperation.items);
 
       if (rightOp === INSERT) {
         // also merge right (we have split an insert with an insert)
@@ -218,16 +213,16 @@ TrackedArray.prototype = {
     }
   },
 
-  _composeDelete: function (index) {
-    var arrayOperation = this._operations[index],
-        deletesToGo = arrayOperation.count,
-        leftArrayOperation = this._operations[index-1], // may be undefined
-        leftOp = leftArrayOperation && leftArrayOperation.type,
-        nextArrayOperation,
-        nextOp,
-        nextCount,
-        removeNewAndNextOp = false,
-        removedItems = [];
+  _composeDelete(index) {
+    var arrayOperation = this._operations[index];
+    var deletesToGo = arrayOperation.count;
+    var leftArrayOperation = this._operations[index-1]; // may be undefined
+    var leftOp = leftArrayOperation && leftArrayOperation.type;
+    var nextArrayOperation;
+    var nextOp;
+    var nextCount;
+    var removeNewAndNextOp = false;
+    var removedItems = [];
 
     if (leftOp === DELETE) {
       arrayOperation = leftArrayOperation;
@@ -286,10 +281,10 @@ TrackedArray.prototype = {
     return removedItems;
   },
 
-  toString: function () {
-    var str = "";
-    forEach(this._operations, function (operation) {
-      str += " " + operation.type + ":" + operation.count;
+  toString() {
+    var str = '';
+    this._operations.forEach((operation) => {
+      str += ' ' + operation.type + ':' + operation.count;
     });
     return str.substring(1);
   }
@@ -300,13 +295,14 @@ TrackedArray.prototype = {
 
   @method ArrayOperation
   @private
-  @param {String} type The type of the operation.  One of
+  @param {String} operation The type of the operation.  One of
   `Ember.TrackedArray.{RETAIN, INSERT, DELETE}`
   @param {Number} count The number of items in this operation.
   @param {Array} items The items of the operation, if included.  RETAIN and
   INSERT include their items, DELETE does not.
+  @private
 */
-function ArrayOperation (operation, count, items) {
+function ArrayOperation(operation, count, items) {
   this.type = operation; // RETAIN | INSERT | DELETE
   this.count = count;
   this.items = items;
@@ -325,6 +321,7 @@ function ArrayOperation (operation, count, items) {
   @param {Number} rangeStart The index of the first item in the operation,
   with respect to the tracked array.  The index of the last item can be computed
   from `rangeStart` and `operation.count`.
+  @private
 */
 function ArrayOperationMatch(operation, index, split, rangeStart) {
   this.operation = operation;

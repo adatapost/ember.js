@@ -1,9 +1,9 @@
-import Ember from "ember-metal/core";
+import Ember from 'ember-metal/core';
 import {get} from 'ember-metal/property_get';
 import {set} from 'ember-metal/property_set';
 import run from 'ember-metal/run_loop';
-import {Binding, bind, oneWay} from "ember-metal/binding";
-import {observer as emberObserver} from "ember-metal/mixin";
+import {Binding, bind, oneWay} from 'ember-metal/binding';
+import {observer as emberObserver} from 'ember-metal/mixin';
 import EmberObject from 'ember-runtime/system/object';
 
 
@@ -30,7 +30,7 @@ import EmberObject from 'ember-runtime/system/object';
 
   * Changed call calls for obj.bind(...) to bind(obj, ...);
 
-  * Changed all calls to sc_super() to this._super()
+  * Changed all calls to sc_super() to this._super.apply(this, arguments)
 
   * Changed all calls to disconnect() to pass the root object.
 
@@ -47,10 +47,10 @@ import EmberObject from 'ember-runtime/system/object';
 var TestNamespace, fromObject, toObject, binding, Bon1, bon2, root; // global variables
 var originalLookup, lookup;
 
-QUnit.module("basic object binding", {
-  setup: function() {
-    fromObject = EmberObject.create({ value: 'start' }) ;
-    toObject = EmberObject.create({ value: 'end' }) ;
+QUnit.module('basic object binding', {
+  setup() {
+    fromObject = EmberObject.create({ value: 'start' });
+    toObject = EmberObject.create({ value: 'end' });
     root = { fromObject: fromObject, toObject: toObject };
     run(function () {
       binding = bind(root, 'toObject.value', 'fromObject.value');
@@ -58,27 +58,27 @@ QUnit.module("basic object binding", {
   }
 });
 
-test("binding should have synced on connect", function() {
-  equal(get(toObject, "value"), "start", "toObject.value should match fromObject.value");
+QUnit.test('binding should have synced on connect', function() {
+  equal(get(toObject, 'value'), 'start', 'toObject.value should match fromObject.value');
 });
 
-test("fromObject change should propagate to toObject only after flush", function() {
+QUnit.test('fromObject change should propagate to toObject only after flush', function() {
   run(function () {
-    set(fromObject, "value", "change") ;
-    equal(get(toObject, "value"), "start") ;
+    set(fromObject, 'value', 'change');
+    equal(get(toObject, 'value'), 'start');
   });
-  equal(get(toObject, "value"), "change") ;
+  equal(get(toObject, 'value'), 'change');
 });
 
-test("toObject change should propagate to fromObject only after flush", function() {
+QUnit.test('toObject change should propagate to fromObject only after flush', function() {
   run(function () {
-    set(toObject, "value", "change") ;
-    equal(get(fromObject, "value"), "start") ;
+    set(toObject, 'value', 'change');
+    equal(get(fromObject, 'value'), 'start');
   });
-  equal(get(fromObject, "value"), "change") ;
+  equal(get(fromObject, 'value'), 'change');
 });
 
-test("deferred observing during bindings", function() {
+QUnit.test('deferred observing during bindings', function() {
 
   // setup special binding
   fromObject = EmberObject.create({
@@ -86,17 +86,17 @@ test("deferred observing during bindings", function() {
     value2: 'value2'
   });
 
-  toObject = EmberObject.createWithMixins({
-    value1: 'value1',
-    value2: 'value2',
-
-    callCount: 0,
-
+  toObject = EmberObject.extend({
     observer: emberObserver('value1', 'value2', function() {
       equal(get(this, 'value1'), 'CHANGED', 'value1 when observer fires');
       equal(get(this, 'value2'), 'CHANGED', 'value2 when observer fires');
       this.callCount++;
     })
+  }).create({
+    value1: 'value1',
+    value2: 'value2',
+
+    callCount: 0
   });
 
   var root = { fromObject: fromObject, toObject: toObject };
@@ -113,7 +113,7 @@ test("deferred observing during bindings", function() {
   equal(toObject.callCount, 2, 'should call observer twice');
 });
 
-test("binding disconnection actually works", function() {
+QUnit.test('binding disconnection actually works', function() {
   binding.disconnect(root);
   run(function () {
     set(fromObject, 'value', 'change');
@@ -125,35 +125,35 @@ test("binding disconnection actually works", function() {
 // one way binding
 //
 
-QUnit.module("one way binding", {
+QUnit.module('one way binding', {
 
-  setup: function() {
+  setup() {
     run(function() {
-      fromObject = EmberObject.create({ value: 'start' }) ;
-      toObject = EmberObject.create({ value: 'end' }) ;
+      fromObject = EmberObject.create({ value: 'start' });
+      toObject = EmberObject.create({ value: 'end' });
       root = { fromObject: fromObject, toObject: toObject };
       binding = oneWay(root, 'toObject.value', 'fromObject.value');
     });
   },
-  teardown: function() {
+  teardown() {
     run.cancelTimers();
   }
 });
 
-test("fromObject change should propagate after flush", function() {
+QUnit.test('fromObject change should propagate after flush', function() {
   run(function() {
-    set(fromObject, "value", "change");
-    equal(get(toObject, "value"), "start");
+    set(fromObject, 'value', 'change');
+    equal(get(toObject, 'value'), 'start');
   });
-  equal(get(toObject, "value"), "change");
+  equal(get(toObject, 'value'), 'change');
 });
 
-test("toObject change should NOT propagate", function() {
+QUnit.test('toObject change should NOT propagate', function() {
   run(function() {
-    set(toObject, "value", "change");
-    equal(get(fromObject, "value"), "start");
+    set(toObject, 'value', 'change');
+    equal(get(fromObject, 'value'), 'start');
   });
-  equal(get(fromObject, "value"), "start");
+  equal(get(fromObject, 'value'), 'start');
 });
 
 var first, second, third, binding1, binding2; // global variables
@@ -162,63 +162,63 @@ var first, second, third, binding1, binding2; // global variables
 // chained binding
 //
 
-QUnit.module("chained binding", {
+QUnit.module('chained binding', {
 
-  setup: function() {
+  setup() {
     run(function() {
-      first = EmberObject.create({ output: 'first' }) ;
+      first = EmberObject.create({ output: 'first' });
 
-      second = EmberObject.createWithMixins({
-        input: 'second',
-        output: 'second',
-
-        inputDidChange: emberObserver("input", function() {
-          set(this, "output", get(this, "input")) ;
+      second = EmberObject.extend({
+        inputDidChange: emberObserver('input', function() {
+          set(this, 'output', get(this, 'input'));
         })
-      }) ;
+      }).create({
+        input: 'second',
+        output: 'second'
+      });
 
-      third = EmberObject.create({ input: "third" }) ;
+      third = EmberObject.create({ input: 'third' });
 
       root = { first: first, second: second, third: third };
       binding1 = bind(root, 'second.input', 'first.output');
       binding2 = bind(root, 'second.output', 'third.input');
     });
   },
-  teardown: function() {
+  teardown() {
     run.cancelTimers();
   }
 });
 
-test("changing first output should propograte to third after flush", function() {
+QUnit.test('changing first output should propagate to third after flush', function() {
   run(function() {
-    set(first, "output", "change") ;
-    equal("change", get(first, "output"), "first.output") ;
-    ok("change" !== get(third, "input"), "third.input") ;
+    set(first, 'output', 'change');
+    equal('change', get(first, 'output'), 'first.output');
+    ok('change' !== get(third, 'input'), 'third.input');
   });
 
-  equal("change", get(first, "output"), "first.output") ;
-  equal("change", get(second, "input"), "second.input") ;
-  equal("change", get(second, "output"), "second.output") ;
-  equal("change", get(third,"input"), "third.input") ;
+  equal('change', get(first, 'output'), 'first.output');
+  equal('change', get(second, 'input'), 'second.input');
+  equal('change', get(second, 'output'), 'second.output');
+  equal('change', get(third, 'input'), 'third.input');
 });
 
 // ..........................................................
 // Custom Binding
 //
 
-QUnit.module("Custom Binding", {
-  setup: function() {
+QUnit.module('Custom Binding', {
+  setup() {
     originalLookup = Ember.lookup;
     Ember.lookup = lookup = {};
 
     Bon1 = EmberObject.extend({
-      value1: "hi",
+      value1: 'hi',
       value2: 83,
       array1: []
     });
 
     bon2 = EmberObject.create({
-      val1: "hello",
+      val1: 'hello',
       val2: 25,
       arr: [1,2,3,4]
     });
@@ -228,98 +228,97 @@ QUnit.module("Custom Binding", {
       Bon1: Bon1
     };
   },
-  teardown: function() {
+  teardown() {
     Ember.lookup = originalLookup;
     Bon1 = bon2 = TestNamespace  = null;
     run.cancelTimers();
   }
 });
 
-test("two bindings to the same value should sync in the order they are initialized", function() {
+QUnit.test('two bindings to the same value should sync in the order they are initialized', function() {
 
   run.begin();
 
   var a = EmberObject.create({
-    foo: "bar"
+    foo: 'bar'
   });
 
-  var b = EmberObject.createWithMixins({
-    foo: "baz",
-    fooBinding: "a.foo",
-
-    a: a,
-
+  var b = EmberObject.extend({
     C: EmberObject.extend({
-      foo: "bee",
-      fooBinding: "owner.foo"
+      foo: 'bee',
+      fooBinding: 'owner.foo'
     }),
 
-    init: function() {
-      this._super();
+    init() {
+      this._super.apply(this, arguments);
       set(this, 'c', this.C.create({ owner: this }));
     }
-
+  }).create({
+    foo: 'baz',
+    fooBinding: 'a.foo',
+    a: a
   });
 
   run.end();
 
-  equal(get(a, 'foo'), "bar", 'a.foo should not change');
-  equal(get(b, 'foo'), "bar", 'a.foo should propagate up to b.foo');
-  equal(get(b.c, 'foo'), "bar", 'a.foo should propagate up to b.c.foo');
+  equal(get(a, 'foo'), 'bar', 'a.foo should not change');
+  equal(get(b, 'foo'), 'bar', 'a.foo should propagate up to b.foo');
+  equal(get(b.c, 'foo'), 'bar', 'a.foo should propagate up to b.c.foo');
 });
 
 // ..........................................................
 // propertyNameBinding with longhand
 //
 
-QUnit.module("propertyNameBinding with longhand", {
-  setup: function() {
+QUnit.module('propertyNameBinding with longhand', {
+  setup() {
     originalLookup = Ember.lookup;
     Ember.lookup = lookup = {};
 
     Ember.lookup['TestNamespace'] = TestNamespace = {};
     run(function () {
       TestNamespace.fromObject = EmberObject.create({
-        value: "originalValue"
+        value: 'originalValue'
       });
 
-      TestNamespace.toObject = EmberObject.createWithMixins({
-          valueBinding: Binding.from('TestNamespace.fromObject.value'),
-          localValue: "originalLocal",
-          relativeBinding: Binding.from('localValue')
+      TestNamespace.toObject = EmberObject.extend({
+        valueBinding: Binding.from('TestNamespace.fromObject.value'),
+        relativeBinding: Binding.from('localValue')
+      }).create({
+        localValue: 'originalLocal'
       });
     });
   },
-  teardown: function() {
+  teardown() {
     TestNamespace = undefined;
     Ember.lookup = originalLookup;
   }
 });
 
-test("works with full path", function() {
+QUnit.test('works with full path', function() {
   run(function () {
-    set(TestNamespace.fromObject, 'value', "updatedValue");
+    set(TestNamespace.fromObject, 'value', 'updatedValue');
   });
 
-  equal(get(TestNamespace.toObject, 'value'), "updatedValue");
+  equal(get(TestNamespace.toObject, 'value'), 'updatedValue');
 
   run(function () {
-    set(TestNamespace.fromObject, 'value', "newerValue");
+    set(TestNamespace.fromObject, 'value', 'newerValue');
   });
 
-  equal(get(TestNamespace.toObject, 'value'), "newerValue");
+  equal(get(TestNamespace.toObject, 'value'), 'newerValue');
 });
 
-test("works with local path", function() {
+QUnit.test('works with local path', function() {
   run(function () {
-    set(TestNamespace.toObject, 'localValue', "updatedValue");
+    set(TestNamespace.toObject, 'localValue', 'updatedValue');
   });
 
-  equal(get(TestNamespace.toObject, 'relative'), "updatedValue");
+  equal(get(TestNamespace.toObject, 'relative'), 'updatedValue');
 
   run(function () {
-    set(TestNamespace.toObject, 'localValue', "newerValue");
+    set(TestNamespace.toObject, 'localValue', 'newerValue');
   });
 
-  equal(get(TestNamespace.toObject, 'relative'), "newerValue");
+  equal(get(TestNamespace.toObject, 'relative'), 'newerValue');
 });

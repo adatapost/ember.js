@@ -1,8 +1,8 @@
-import { get } from "ember-metal/property_get";
-import { set } from "ember-metal/property_set";
-import { computed } from "ember-metal/computed";
-import { Mixin } from "ember-metal/mixin";
-import EmberError from "ember-metal/error";
+import { get } from 'ember-metal/property_get';
+import setProperties from 'ember-metal/set_properties';
+import { computed } from 'ember-metal/computed';
+import { Mixin } from 'ember-metal/mixin';
+import EmberError from 'ember-metal/error';
 
 var not = computed.not;
 var or = computed.or;
@@ -10,25 +10,31 @@ var or = computed.or;
 /**
   @module ember
   @submodule ember-runtime
- */
+*/
 
 function tap(proxy, promise) {
-  set(proxy, 'isFulfilled', false);
-  set(proxy, 'isRejected', false);
+  setProperties(proxy, {
+    isFulfilled: false,
+    isRejected: false
+  });
 
   return promise.then(function(value) {
-    set(proxy, 'isFulfilled', true);
-    set(proxy, 'content', value);
+    setProperties(proxy, {
+      content: value,
+      isFulfilled: true
+    });
     return value;
   }, function(reason) {
-    set(proxy, 'isRejected', true);
-    set(proxy, 'reason', reason);
+    setProperties(proxy, {
+      reason: reason,
+      isRejected: true
+    });
     throw reason;
-  }, "Ember: PromiseProxy");
+  }, 'Ember: PromiseProxy');
 }
 
 /**
-  A low level mixin making ObjectProxy, ObjectController or ArrayController's promise aware.
+  A low level mixin making ObjectProxy, ObjectController or ArrayControllers promise-aware.
 
   ```javascript
   var ObjectPromiseController = Ember.ObjectController.extend(Ember.PromiseProxyMixin);
@@ -91,6 +97,7 @@ function tap(proxy, promise) {
   {{/if}}
   ```
   @class Ember.PromiseProxyMixin
+  @public
 */
 export default Mixin.create({
   /**
@@ -99,6 +106,7 @@ export default Mixin.create({
 
     @property reason
     @default null
+    @public
   */
   reason:  null,
 
@@ -107,6 +115,7 @@ export default Mixin.create({
 
     @property isPending
     @default true
+    @public
   */
   isPending:  not('isSettled').readOnly(),
 
@@ -115,6 +124,7 @@ export default Mixin.create({
 
     @property isSettled
     @default false
+    @public
   */
   isSettled:  or('isRejected', 'isFulfilled').readOnly(),
 
@@ -123,6 +133,7 @@ export default Mixin.create({
 
     @property isRejected
     @default false
+    @public
   */
   isRejected:  false,
 
@@ -131,6 +142,7 @@ export default Mixin.create({
 
     @property isFulfilled
     @default false
+    @public
   */
   isFulfilled: false,
 
@@ -149,12 +161,14 @@ export default Mixin.create({
     ```
 
     @property promise
+    @public
   */
-  promise: computed(function(key, promise) {
-    if (arguments.length === 2) {
+  promise: computed({
+    get() {
+      throw new EmberError('PromiseProxy\'s promise must be set');
+    },
+    set(key, promise) {
       return tap(this, promise);
-    } else {
-      throw new EmberError("PromiseProxy's promise must be set");
     }
   }),
 
@@ -166,6 +180,7 @@ export default Mixin.create({
     @method then
     @param {Function} callback
     @return {RSVP.Promise}
+    @public
   */
   then: promiseAlias('then'),
 
@@ -178,6 +193,7 @@ export default Mixin.create({
     @param {Function} callback
     @return {RSVP.Promise}
     @since 1.3.0
+    @public
   */
   'catch': promiseAlias('catch'),
 
@@ -190,6 +206,7 @@ export default Mixin.create({
     @param {Function} callback
     @return {RSVP.Promise}
     @since 1.3.0
+    @public
   */
   'finally': promiseAlias('finally')
 
@@ -198,6 +215,6 @@ export default Mixin.create({
 function promiseAlias(name) {
   return function () {
     var promise = get(this, 'promise');
-    return promise[name].apply(promise, arguments);
+    return promise[name](...arguments);
   };
 }

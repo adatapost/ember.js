@@ -1,16 +1,19 @@
-import {Suite, SuiteModuleBuilder} from 'ember-runtime/tests/suites/suite';
-import {required} from "ember-metal/mixin";
+import { Suite } from 'ember-runtime/tests/suites/suite';
 
 var CopyableTests = Suite.extend({
 
-  /**
+  /*
+    __Required.__ You must implement this method to apply this mixin.
+
     Must be able to create a new object for testing.
 
     @returns {Object} object
   */
-  newObject: required(Function),
+  newObject: null,
 
-  /**
+  /*
+    __Required.__ You must implement this method to apply this mixin.
+
     Compares the two passed in objects.  Returns true if the two objects
     are logically equivalent.
 
@@ -22,9 +25,9 @@ var CopyableTests = Suite.extend({
 
     @returns {Boolean}
   */
-  isEqual: required(Function),
+  isEqual: null,
 
-  /**
+  /*
     Set this to true if you expect the objects you test to be freezable.
     The suite will verify that your objects actually match this.  (i.e. if
     you say you can't test freezable it will verify that your objects really

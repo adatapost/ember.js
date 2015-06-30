@@ -1,11 +1,16 @@
-import "ember";
+import 'ember';
+import Ember from 'ember-metal/core';
+import EmberHandlebars from 'ember-htmlbars/compat';
+import { arrayControllerDeprecation } from 'ember-runtime/controllers/array_controller';
+
+var compile = EmberHandlebars.compile;
 
 var App, $fixture;
 
 function setupExample() {
   // setup templates
-  Ember.TEMPLATES.application = Ember.Handlebars.compile("{{outlet}}");
-  Ember.TEMPLATES.index = Ember.Handlebars.compile("<h1>People</h1><ul>{{#each model}}<li>Hello, <b>{{fullName}}</b>!</li>{{/each}}</ul>");
+  Ember.TEMPLATES.application = compile('{{outlet}}');
+  Ember.TEMPLATES.index = compile('<h1>People</h1><ul>{{#each model as |person|}}<li>Hello, <b>{{person.fullName}}</b>!</li>{{/each}}</ul>');
 
 
   App.Person = Ember.Object.extend({
@@ -13,20 +18,21 @@ function setupExample() {
     lastName: null,
 
     fullName: Ember.computed('firstName', 'lastName', function() {
-      return this.get('firstName') + " " + this.get('lastName');
+      return this.get('firstName') + ' ' + this.get('lastName');
     })
   });
 
   App.IndexRoute = Ember.Route.extend({
-    model: function() {
+    model() {
+      expectDeprecation(arrayControllerDeprecation);
       var people = Ember.A([
         App.Person.create({
-          firstName: "Tom",
-          lastName: "Dale"
+          firstName: 'Tom',
+          lastName: 'Dale'
         }),
         App.Person.create({
-          firstName: "Yehuda",
-          lastName: "Katz"
+          firstName: 'Yehuda',
+          lastName: 'Katz'
         })
       ]);
       return people;
@@ -34,11 +40,11 @@ function setupExample() {
   });
 }
 
-QUnit.module("Homepage Example", {
-  setup: function() {
+QUnit.module('Homepage Example', {
+  setup() {
     Ember.run(function() {
       App = Ember.Application.create({
-        name: "App",
+        name: 'App',
         rootElement: '#qunit-fixture'
       });
       App.deferReadiness();
@@ -54,7 +60,7 @@ QUnit.module("Homepage Example", {
     setupExample();
   },
 
-  teardown: function() {
+  teardown() {
     Ember.run(function() {
       App.destroy();
     });
@@ -66,7 +72,7 @@ QUnit.module("Homepage Example", {
 });
 
 
-test("The example renders correctly", function() {
+QUnit.test('The example renders correctly', function() {
   Ember.run(App, 'advanceReadiness');
 
   equal($fixture.find('h1:contains(People)').length, 1);

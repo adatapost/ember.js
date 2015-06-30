@@ -1,5 +1,7 @@
-import Ember from "ember-metal/core";
-import EmberError from "ember-metal/error";
+import Ember from 'ember-metal/core'; // Ember.imports
+import EmberError from 'ember-metal/error';
+
+function K() { return this; }
 
 function consoleMethod(name) {
   var consoleObj, logToConsole;
@@ -12,8 +14,12 @@ function consoleMethod(name) {
   var method = typeof consoleObj === 'object' ? consoleObj[name] : null;
 
   if (method) {
-    // Older IE doesn't support apply, but Chrome needs it
-    if (typeof method.apply === 'function') {
+    // Older IE doesn't support bind, but Chrome needs it
+    if (typeof method.bind === 'function') {
+      logToConsole = method.bind(consoleObj);
+      logToConsole.displayName = 'console.' + name;
+      return logToConsole;
+    } else if (typeof method.apply === 'function') {
       logToConsole = function() {
         method.apply(consoleObj, arguments);
       };
@@ -32,9 +38,9 @@ function assertPolyfill(test, message) {
   if (!test) {
     try {
       // attempt to preserve the stack
-      throw new EmberError("assertion failed: " + message);
+      throw new EmberError('assertion failed: ' + message);
     } catch(error) {
-      setTimeout(function() {
+      setTimeout(() => {
         throw error;
       }, 0);
     }
@@ -47,6 +53,7 @@ function assertPolyfill(test, message) {
 
   @class Logger
   @namespace Ember
+  @private
 */
 export default {
   /**
@@ -62,8 +69,9 @@ export default {
    @method log
    @for Ember.Logger
    @param {*} arguments
+   @private
   */
-  log:   consoleMethod('log')   || Ember.K,
+  log:   consoleMethod('log')   || K,
 
   /**
    Prints the arguments to the console with a warning icon.
@@ -77,8 +85,9 @@ export default {
    @method warn
    @for Ember.Logger
    @param {*} arguments
+   @private
   */
-  warn:  consoleMethod('warn')  || Ember.K,
+  warn:  consoleMethod('warn')  || K,
 
   /**
    Prints the arguments to the console with an error icon, red text and a stack trace.
@@ -92,8 +101,9 @@ export default {
    @method error
    @for Ember.Logger
    @param {*} arguments
+   @private
   */
-  error: consoleMethod('error') || Ember.K,
+  error: consoleMethod('error') || K,
 
   /**
    Logs the arguments to the console.
@@ -108,8 +118,9 @@ export default {
    @method info
    @for Ember.Logger
    @param {*} arguments
+   @private
   */
-  info:  consoleMethod('info')  || Ember.K,
+  info:  consoleMethod('info')  || K,
 
   /**
    Logs the arguments to the console in blue text.
@@ -124,8 +135,9 @@ export default {
    @method debug
    @for Ember.Logger
    @param {*} arguments
+   @private
   */
-  debug: consoleMethod('debug') || consoleMethod('info') || Ember.K,
+  debug: consoleMethod('debug') || consoleMethod('info') || K,
 
   /**
    If the value passed into `Ember.Logger.assert` is not truthy it will throw an error with a stack trace.
@@ -138,6 +150,7 @@ export default {
    @method assert
    @for Ember.Logger
    @param {Boolean} bool Value to test
+   @private
   */
   assert: consoleMethod('assert') || assertPolyfill
 };

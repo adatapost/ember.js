@@ -3,31 +3,20 @@
 */
 
 import {
-  meta,
-  META_KEY,
-  GUID_KEY,
-  typeOf,
-  generateGuid
-} from "ember-metal/utils";
-import {
   removeChainWatcher,
   flushPendingChains
-} from "ember-metal/chains";
+} from 'ember-metal/chains';
 import {
   watchKey,
   unwatchKey
-} from "ember-metal/watch_key";
+} from 'ember-metal/watch_key';
 import {
   watchPath,
   unwatchPath
-} from "ember-metal/watch_path";
-
-var metaFor = meta; // utils.js
-
-// returns true if the passed path is just a keyName
-function isKeyName(path) {
-  return path.indexOf('.') === -1;
-}
+} from 'ember-metal/watch_path';
+import {
+  isPath
+} from 'ember-metal/path_cache';
 
 /**
   Starts watching a property on an object. Whenever the property changes,
@@ -40,13 +29,13 @@ function isKeyName(path) {
   @method watch
   @for Ember
   @param obj
-  @param {String} keyName
+  @param {String} _keyPath
 */
 function watch(obj, _keyPath, m) {
   // can't watch length on Array - it is special...
-  if (_keyPath === 'length' && typeOf(obj) === 'array') { return; }
+  if (_keyPath === 'length' && Array.isArray(obj)) { return; }
 
-  if (isKeyName(_keyPath)) {
+  if (!isPath(_keyPath)) {
     watchKey(obj, _keyPath, m);
   } else {
     watchPath(obj, _keyPath, m);
@@ -56,7 +45,7 @@ function watch(obj, _keyPath, m) {
 export { watch };
 
 export function isWatching(obj, key) {
-  var meta = obj[META_KEY];
+  var meta = obj['__ember_meta__'];
   return (meta && meta.watching[key]) > 0;
 }
 
@@ -64,36 +53,12 @@ watch.flushPending = flushPendingChains;
 
 export function unwatch(obj, _keyPath, m) {
   // can't watch length on Array - it is special...
-  if (_keyPath === 'length' && typeOf(obj) === 'array') { return; }
+  if (_keyPath === 'length' && Array.isArray(obj)) { return; }
 
-  if (isKeyName(_keyPath)) {
+  if (!isPath(_keyPath)) {
     unwatchKey(obj, _keyPath, m);
   } else {
     unwatchPath(obj, _keyPath, m);
-  }
-}
-
-/**
-  Call on an object when you first beget it from another object. This will
-  setup any chained watchers on the object instance as needed. This method is
-  safe to call multiple times.
-
-  @private
-  @method rewatch
-  @for Ember
-  @param obj
-*/
-export function rewatch(obj) {
-  var m = obj[META_KEY], chains = m && m.chains;
-
-  // make sure the object has its own guid.
-  if (GUID_KEY in obj && !obj.hasOwnProperty(GUID_KEY)) {
-    generateGuid(obj);
-  }
-
-  // make sure any chained watchers update.
-  if (chains && chains.value() !== obj) {
-    m.chains = chains.copy(obj);
   }
 }
 
@@ -107,11 +72,14 @@ var NODE_STACK = [];
   @for Ember
   @param {Object} obj  the object to destroy
   @return {void}
+  @private
 */
 export function destroy(obj) {
-  var meta = obj[META_KEY], node, nodes, key, nodeObject;
+  var meta = obj['__ember_meta__'];
+  var node, nodes, key, nodeObject;
+
   if (meta) {
-    obj[META_KEY] = null;
+    obj['__ember_meta__'] = null;
     // remove chainWatchers to remove circular references that would prevent GC
     node = meta.chains;
     if (node) {
@@ -123,7 +91,7 @@ export function destroy(obj) {
         nodes = node._chains;
         if (nodes) {
           for (key in nodes) {
-            if (nodes.hasOwnProperty(key)) {
+            if (nodes[key] !== undefined) {
               NODE_STACK.push(nodes[key]);
             }
           }

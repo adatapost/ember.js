@@ -1,18 +1,17 @@
-import {SuiteModuleBuilder} from 'ember-runtime/tests/suites/suite';
-import EnumerableUtils from 'ember-metal/enumerable_utils';
-import {get} from 'ember-metal/property_get';
-import {guidFor} from "ember-metal/utils";
+import { SuiteModuleBuilder } from 'ember-runtime/tests/suites/suite';
+import { get } from 'ember-metal/property_get';
+import { guidFor } from 'ember-metal/utils';
 
-var suite = SuiteModuleBuilder.create(), global = this;
+var suite = SuiteModuleBuilder.create();
 
 suite.module('map');
 
 function mapFunc(item) { return item ? item.toString() : null; }
 
 suite.test('map should iterate over list', function() {
-  var obj = this.newObject(),
-      ary = EnumerableUtils.map(this.toArray(obj), mapFunc),
-      found = [];
+  var obj = this.newObject();
+  var ary = this.toArray(obj).map(mapFunc);
+  var found = [];
 
   found = obj.map(mapFunc);
   deepEqual(found, ary, 'mapped arrays should match');
@@ -22,12 +21,12 @@ suite.test('map should iterate over list', function() {
 suite.test('map should iterate over list after mutation', function() {
   if (get(this, 'canTestMutation')) {
     expect(0);
-    return ;
+    return;
   }
 
-  var obj = this.newObject(),
-      ary = this.toArray(obj).map(mapFunc),
-      found;
+  var obj = this.newObject();
+  var ary = this.toArray(obj).map(mapFunc);
+  var found;
 
   found = obj.map(mapFunc);
   deepEqual(found, ary, 'items passed during forEach should match');
@@ -39,7 +38,8 @@ suite.test('map should iterate over list after mutation', function() {
 });
 
 suite.test('2nd target parameter', function() {
-  var obj = this.newObject(), target = this;
+  var obj = this.newObject();
+  var target = this;
 
 
   obj.map(function() {
@@ -58,9 +58,9 @@ suite.test('2nd target parameter', function() {
 
 
 suite.test('callback params', function() {
-  var obj = this.newObject(),
-      ary = this.toArray(obj),
-      loc = 0;
+  var obj = this.newObject();
+  var ary = this.toArray(obj);
+  var loc = 0;
 
 
   obj.map(function(item, idx, enumerable) {

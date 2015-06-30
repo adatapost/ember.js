@@ -1,6 +1,4 @@
-import {get} from "ember-metal/property_get";
-import EmberError from "ember-metal/error";
-import EnumerableUtils from "ember-metal/enumerable_utils";
+import EmberError from 'ember-metal/error';
 
 var RETAIN = 'r';
 var FILTER = 'f';
@@ -19,8 +17,9 @@ export default SubArray;
 
   @class SubArray
   @namespace Ember
+  @private
 */
-function SubArray (length) {
+function SubArray(length) {
   if (arguments.length < 1) { length = 0; }
 
   if (length > 0) {
@@ -41,11 +40,12 @@ SubArray.prototype = {
     @param {Boolean} match `true` iff the item is included in the subarray.
 
     @return {number} The index of the item in the subarray.
+    @private
   */
-  addItem: function(index, match) {
-    var returnValue = -1,
-        itemType = match ? RETAIN : FILTER,
-        self = this;
+  addItem(index, match) {
+    var returnValue = -1;
+    var itemType = match ? RETAIN : FILTER;
+    var self = this;
 
     this._findOperation(index, function(operation, operationIndex, rangeStart, rangeEnd, seenInSubArray) {
       var newOperation, splitOperation;
@@ -94,10 +94,11 @@ SubArray.prototype = {
 
     @return {number} The index of the item in the subarray, or `-1` if the item
     was not in the subarray.
+    @private
   */
-  removeItem: function(index) {
-    var returnValue = -1,
-        self = this;
+  removeItem(index) {
+    var returnValue = -1;
+    var self = this;
 
     this._findOperation(index, function (operation, operationIndex, rangeStart, rangeEnd, seenInSubArray) {
       if (operation.type === RETAIN) {
@@ -111,20 +112,16 @@ SubArray.prototype = {
         self._composeAt(operationIndex);
       }
     }, function() {
-      throw new EmberError("Can't remove an item that has never been added.");
+      throw new EmberError('Can\'t remove an item that has never been added.');
     });
 
     return returnValue;
   },
 
 
-  _findOperation: function (index, foundCallback, notFoundCallback) {
-    var operationIndex,
-        len,
-        operation,
-        rangeStart,
-        rangeEnd,
-        seenInSubArray = 0;
+  _findOperation(index, foundCallback, notFoundCallback) {
+    var seenInSubArray = 0;
+    var operationIndex, len, operation, rangeStart, rangeEnd;
 
     // OPTIMIZE: change to balanced tree
     // find leftmost operation to the right of `index`
@@ -143,9 +140,9 @@ SubArray.prototype = {
     notFoundCallback(seenInSubArray);
   },
 
-  _composeAt: function(index) {
-    var op = this._operations[index],
-        otherOp;
+  _composeAt(index) {
+    var op = this._operations[index];
+    var otherOp;
 
     if (!op) {
       // Composing out of bounds is a no-op, as when removing the last operation
@@ -171,10 +168,10 @@ SubArray.prototype = {
     }
   },
 
-  toString: function () {
-    var str = "";
-    EnumerableUtils.forEach(this._operations, function (operation) {
-      str += " " + operation.type + ":" + operation.count;
+  toString() {
+    var str = '';
+    this._operations.forEach((operation) => {
+      str += ' ' + operation.type + ':' + operation.count;
     });
     return str.substring(1);
   }

@@ -1,4 +1,3 @@
-import Ember from 'ember-metal/core'; // deprecateFunc
 import isEmpty from 'ember-metal/is_empty';
 
 /**
@@ -23,7 +22,8 @@ import isEmpty from 'ember-metal/is_empty';
   @param {Object} obj Value to test
   @return {Boolean}
   @since 1.5.0
-  */
+  @public
+*/
 export default function isBlank(obj) {
   return isEmpty(obj) || (typeof obj === 'string' && obj.match(/\S/) === null);
 }

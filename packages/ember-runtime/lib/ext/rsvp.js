@@ -2,10 +2,11 @@
 
 import Ember from 'ember-metal/core';
 import Logger from 'ember-metal/logger';
-import run from "ember-metal/run_loop";
+import run from 'ember-metal/run_loop';
+import * as RSVP from 'rsvp';
 
-var RSVP = requireModule('rsvp');
-var Test, testModuleName = 'ember-testing/test';
+var testModuleName = 'ember-testing/test';
+var Test;
 
 var asyncStart = function() {
   if (Ember.Test && Ember.Test.adapter) {
@@ -24,19 +25,27 @@ RSVP.configure('async', function(callback, promise) {
 
   if (Ember.testing && async) { asyncStart(); }
 
-  run.backburner.schedule('actions', function(){
+  run.backburner.schedule('actions', function() {
     if (Ember.testing && async) { asyncEnd(); }
     callback(promise);
   });
 });
 
-RSVP.Promise.prototype.fail = function(callback, label){
-  Ember.deprecate('RSVP.Promise.fail has been renamed as RSVP.Promise.catch');
-  return this['catch'](callback, label);
-};
+export function onerrorDefault(e) {
+  var error;
 
-RSVP.onerrorDefault = function (error) {
-  if (error instanceof Error) {
+  if (e && e.errorThrown) {
+    // jqXHR provides this
+    error = e.errorThrown;
+    if (typeof error === 'string') {
+      error = new Error(error);
+    }
+    error.__reason_with_error_thrown__ = e;
+  } else {
+    error = e;
+  }
+
+  if (error && error.name !== 'TransitionAborted') {
     if (Ember.testing) {
       // ES6TODO: remove when possible
       if (!Test && Ember.__loader.registry[testModuleName]) {
@@ -45,6 +54,7 @@ RSVP.onerrorDefault = function (error) {
 
       if (Test && Test.adapter) {
         Test.adapter.exception(error);
+        Logger.error(error.stack);
       } else {
         throw error;
       }
@@ -52,11 +62,10 @@ RSVP.onerrorDefault = function (error) {
       Ember.onerror(error);
     } else {
       Logger.error(error.stack);
-      Ember.assert(error, false);
     }
   }
-};
+}
 
-RSVP.on('error', RSVP.onerrorDefault);
+RSVP.on('error', onerrorDefault);
 
 export default RSVP;

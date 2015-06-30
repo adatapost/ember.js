@@ -1,20 +1,21 @@
-import run from "ember-metal/run_loop";
-import jQuery from "ember-views/system/jquery";
-import Test from "ember-testing/test";
-import QUnitAdapter from "ember-testing/adapters/qunit";
-import EmberView from "ember-views/views/view";
-import "ember-testing/initializers"; // ensure the initializer is setup
-import EmberApplication from "ember-application/system/application";
-import EmberRoute from "ember-routing/system/route";
-import EmberHandlebars from "ember-handlebars";
+import run from 'ember-metal/run_loop';
+import jQuery from 'ember-views/system/jquery';
+import Test from 'ember-testing/test';
+import QUnitAdapter from 'ember-testing/adapters/qunit';
+import EmberView from 'ember-views/views/view';
+import 'ember-testing/initializers'; // ensure the initializer is setup
+import EmberApplication from 'ember-application/system/application';
+import EmberRoute from 'ember-routing/system/route';
+import compile from 'ember-template-compiler/system/compile';
+import RSVP from 'ember-runtime/ext/rsvp';
 
 //ES6TODO: we need {{link-to}}  and {{outlet}} to exist here
-import "ember-routing"; //ES6TODO: fixme?
+import 'ember-routing'; //ES6TODO: fixme?
 
-var App, find, click, fillIn, currentRoute, visit, originalAdapter, andThen, indexHitCount;
+var App, find, click, fillIn, currentRoute, currentURL, visit, originalAdapter, andThen, indexHitCount;
 
-QUnit.module("ember-testing Acceptance", {
-  setup: function() {
+QUnit.module('ember-testing Acceptance', {
+  setup() {
     jQuery('<style>#ember-testing-container { position: absolute; background: white; bottom: 0; right: 0; width: 640px; height: 384px; overflow: auto; z-index: 9999; border: 1px solid #ccc; } #ember-testing { zoom: 50%; }</style>').appendTo('head');
     jQuery('<div id="ember-testing-container"><div id="ember-testing"></div></div>').appendTo('body');
     run(function() {
@@ -29,44 +30,58 @@ QUnit.module("ember-testing Acceptance", {
         this.route('comments');
 
         this.route('abort_transition');
+
+        this.route('redirect');
       });
 
       App.IndexRoute = EmberRoute.extend({
-        model: function(){
+        model() {
           indexHitCount += 1;
         }
       });
 
       App.PostsRoute = EmberRoute.extend({
-        renderTemplate: function() {
+        renderTemplate() {
           currentRoute = 'posts';
-          this._super();
+          this._super.apply(this, arguments);
         }
       });
 
       App.PostsView = EmberView.extend({
-        defaultTemplate: EmberHandlebars.compile("<a class=\"dummy-link\"></a><div id=\"comments-link\">{{#link-to 'comments'}}Comments{{/link-to}}</div>"),
+        defaultTemplate: compile('<a class="dummy-link"></a><div id="comments-link">{{#link-to \'comments\'}}Comments{{/link-to}}</div>'),
         classNames: ['posts-view']
       });
 
       App.CommentsRoute = EmberRoute.extend({
-        renderTemplate: function() {
+        renderTemplate() {
           currentRoute = 'comments';
-          this._super();
+          this._super.apply(this, arguments);
         }
       });
 
       App.CommentsView = EmberView.extend({
-        defaultTemplate: EmberHandlebars.compile("{{input type=text}}")
+        defaultTemplate: compile('{{input type="text"}}')
       });
 
       App.AbortTransitionRoute = EmberRoute.extend({
-        beforeModel: function(transition) {
+        beforeModel(transition) {
           transition.abort();
         }
       });
 
+      App.RedirectRoute = EmberRoute.extend({
+        beforeModel() {
+          this.transitionTo('comments');
+        }
+      });
+
       App.setupForTesting();
+    });
+
+    Test.registerAsyncHelper('slowHelper', function() {
+      return new RSVP.Promise(function(resolve) {
+        setTimeout(resolve, 10);
+      });
     });
 
     App.injectTestHelpers();
@@ -76,12 +91,14 @@ QUnit.module("ember-testing Acceptance", {
     fillIn = window.fillIn;
     visit = window.visit;
     andThen = window.andThen;
+    currentURL = window.currentURL;
 
     originalAdapter = Test.adapter;
   },
 
-  teardown: function() {
+  teardown() {
     App.removeTestHelpers();
+    Test.unregisterHelper('slowHelper');
     jQuery('#ember-testing-container, #ember-testing').remove();
     run(App, App.destroy);
     App = null;
@@ -90,25 +107,26 @@ QUnit.module("ember-testing Acceptance", {
   }
 });
 
-test("helpers can be chained with then", function() {
-  expect(5);
+QUnit.test('helpers can be chained with then', function() {
+  expect(6);
 
   currentRoute = 'index';
 
   visit('/posts').then(function() {
-    equal(currentRoute, 'posts', "Successfully visited posts route");
+    equal(currentRoute, 'posts', 'Successfully visited posts route');
+    equal(currentURL(), '/posts', 'posts URL is correct');
     return click('a:contains("Comments")');
   }).then(function() {
-    equal(currentRoute, 'comments', "visit chained with click");
-    return fillIn('.ember-text-field', "yeah");
+    equal(currentRoute, 'comments', 'visit chained with click');
+    return fillIn('.ember-text-field', 'yeah');
   }).then(function() {
-    equal(jQuery('.ember-text-field').val(), 'yeah', "chained with fillIn");
-    return fillIn('.ember-text-field', '#ember-testing-container', "context working");
+    equal(jQuery('.ember-text-field').val(), 'yeah', 'chained with fillIn');
+    return fillIn('.ember-text-field', '#ember-testing-container', 'context working');
   }).then(function() {
-    equal(jQuery('.ember-text-field').val(), 'context working', "chained with fillIn");
-    return click(".does-not-exist");
+    equal(jQuery('.ember-text-field').val(), 'context working', 'chained with fillIn');
+    return click('.does-not-exist');
   }).then(null, function(e) {
-    equal(e.message, "Element .does-not-exist not found.", "Non-existent click exception caught");
+    equal(e.message, 'Element .does-not-exist not found.', 'Non-existent click exception caught');
   });
 });
 
@@ -116,31 +134,33 @@ test("helpers can be chained with then", function() {
 
 // Keep this for backwards compatibility
 
-test("helpers can be chained to each other", function() {
-  expect(5);
+QUnit.test('helpers can be chained to each other', function() {
+  expect(7);
 
   currentRoute = 'index';
 
   visit('/posts')
   .click('a:first', '#comments-link')
-  .fillIn('.ember-text-field', "hello")
+  .fillIn('.ember-text-field', 'hello')
   .then(function() {
-    equal(currentRoute, 'comments', "Successfully visited comments route");
-    equal(jQuery('.ember-text-field').val(), 'hello', "Fillin successfully works");
+    equal(currentRoute, 'comments', 'Successfully visited comments route');
+    equal(currentURL(), '/comments', 'Comments URL is correct');
+    equal(jQuery('.ember-text-field').val(), 'hello', 'Fillin successfully works');
     find('.ember-text-field').one('keypress', function(e) {
-      equal(e.keyCode, 13, "keyevent chained with correct keyCode.");
-      equal(e.which, 13, "keyevent chained with correct which.");
+      equal(e.keyCode, 13, 'keyevent chained with correct keyCode.');
+      equal(e.which, 13, 'keyevent chained with correct which.');
     });
   })
   .keyEvent('.ember-text-field', 'keypress', 13)
   .visit('/posts')
   .then(function() {
-    equal(currentRoute, 'posts', "Thens can also be chained to helpers");
+    equal(currentRoute, 'posts', 'Thens can also be chained to helpers');
+    equal(currentURL(), '/posts', 'URL is set correct on chained helpers');
   });
 });
 
-test("helpers don't need to be chained", function() {
-  expect(3);
+QUnit.test('helpers don\'t need to be chained', function() {
+  expect(5);
 
   currentRoute = 'index';
 
@@ -148,22 +168,24 @@ test("helpers don't need to be chained", function() {
 
   click('a:first', '#comments-link');
 
-  fillIn('.ember-text-field', "hello");
+  fillIn('.ember-text-field', 'hello');
 
   andThen(function() {
-    equal(currentRoute, 'comments', "Successfully visited comments route");
-    equal(find('.ember-text-field').val(), 'hello', "Fillin successfully works");
+    equal(currentRoute, 'comments', 'Successfully visited comments route');
+    equal(currentURL(), '/comments', 'Comments URL is correct');
+    equal(find('.ember-text-field').val(), 'hello', 'Fillin successfully works');
   });
 
   visit('/posts');
 
   andThen(function() {
     equal(currentRoute, 'posts');
+    equal(currentURL(), '/posts');
   });
 });
 
-test("Nested async helpers", function() {
-  expect(3);
+QUnit.test('Nested async helpers', function() {
+  expect(5);
 
   currentRoute = 'index';
 
@@ -172,23 +194,44 @@ test("Nested async helpers", function() {
   andThen(function() {
     click('a:first', '#comments-link');
 
-    fillIn('.ember-text-field', "hello");
+    fillIn('.ember-text-field', 'hello');
   });
 
   andThen(function() {
-    equal(currentRoute, 'comments', "Successfully visited comments route");
-    equal(find('.ember-text-field').val(), 'hello', "Fillin successfully works");
+    equal(currentRoute, 'comments', 'Successfully visited comments route');
+    equal(currentURL(), '/comments', 'Comments URL is correct');
+    equal(find('.ember-text-field').val(), 'hello', 'Fillin successfully works');
   });
 
   visit('/posts');
 
   andThen(function() {
     equal(currentRoute, 'posts');
+    equal(currentURL(), '/posts');
   });
 });
 
-test("Helpers nested in thens", function() {
+QUnit.test('Multiple nested async helpers', function() {
   expect(3);
+
+  visit('/posts');
+
+  andThen(function() {
+    click('a:first', '#comments-link');
+
+    fillIn('.ember-text-field', 'hello');
+    fillIn('.ember-text-field', 'goodbye');
+  });
+
+  andThen(function() {
+    equal(find('.ember-text-field').val(), 'goodbye', 'Fillin successfully works');
+    equal(currentRoute, 'comments', 'Successfully visited comments route');
+    equal(currentURL(), '/comments', 'Comments URL is correct');
+  });
+});
+
+QUnit.test('Helpers nested in thens', function() {
+  expect(5);
 
   currentRoute = 'index';
 
@@ -197,67 +240,142 @@ test("Helpers nested in thens", function() {
   });
 
   andThen(function() {
-    fillIn('.ember-text-field', "hello");
+    fillIn('.ember-text-field', 'hello');
   });
 
   andThen(function() {
-    equal(currentRoute, 'comments', "Successfully visited comments route");
-    equal(find('.ember-text-field').val(), 'hello', "Fillin successfully works");
+    equal(currentRoute, 'comments', 'Successfully visited comments route');
+    equal(currentURL(), '/comments', 'Comments URL is correct');
+    equal(find('.ember-text-field').val(), 'hello', 'Fillin successfully works');
   });
 
   visit('/posts');
 
   andThen(function() {
     equal(currentRoute, 'posts');
+    equal(currentURL(), '/posts', 'Posts URL is correct');
   });
 });
 
-test("Aborted transitions are not logged via Ember.Test.adapter#exception", function () {
+QUnit.test('Aborted transitions are not logged via Ember.Test.adapter#exception', function () {
   expect(0);
 
   Test.adapter = QUnitAdapter.create({
-    exception: function(error) {
-      ok(false, "aborted transitions are not logged");
+    exception(error) {
+      ok(false, 'aborted transitions are not logged');
     }
   });
 
-  visit("/abort_transition");
+  visit('/abort_transition');
 });
 
-test("Unhandled exceptions are logged via Ember.Test.adapter#exception", function () {
+QUnit.test('Unhandled exceptions are logged via Ember.Test.adapter#exception', function () {
   expect(2);
 
   var asyncHandled;
   Test.adapter = QUnitAdapter.create({
-    exception: function(error) {
-      equal(error.message, "Element .does-not-exist not found.", "Exception successfully caught and passed to Ember.Test.adapter.exception");
-      asyncHandled['catch'](function(){ }); // handle the rejection so it doesn't leak later.
+    exception(error) {
+      equal(error.message, 'Element .does-not-exist not found.', 'Exception successfully caught and passed to Ember.Test.adapter.exception');
+      asyncHandled['catch'](function() { }); // handle the rejection so it doesn't leak later.
     }
   });
 
   visit('/posts');
 
-  click(".invalid-element").then(null, function(error) {
-    equal(error.message, "Element .invalid-element not found.", "Exception successfully handled in the rejection handler");
+  click('.invalid-element').then(null, function(error) {
+    equal(error.message, 'Element .invalid-element not found.', 'Exception successfully handled in the rejection handler');
   });
 
-  asyncHandled = click(".does-not-exist");
+  asyncHandled = click('.does-not-exist');
 });
 
-test("should not start routing on the root URL when visiting another", function(){
+QUnit.test('Unhandled exceptions in `andThen` are logged via Ember.Test.adapter#exception', function () {
+  expect(1);
+
+  Test.adapter = QUnitAdapter.create({
+    exception(error) {
+      equal(error.message, 'Catch me', 'Exception successfully caught and passed to Ember.Test.adapter.exception');
+    }
+  });
+
   visit('/posts');
 
-  andThen(function(){
+  andThen(function() {
+    throw new Error('Catch me');
+  });
+});
+
+QUnit.test('should not start routing on the root URL when visiting another', function() {
+  expect(4);
+
+  visit('/posts');
+
+  andThen(function() {
     ok(find('#comments-link'), 'found comments-link');
-    equal(currentRoute, 'posts', "Successfully visited posts route");
+    equal(currentRoute, 'posts', 'Successfully visited posts route');
+    equal(currentURL(), '/posts', 'Posts URL is correct');
     equal(indexHitCount, 0, 'should not hit index route when visiting another route');
   });
 });
 
-test("only enters the index route once when visiting /", function(){
+QUnit.test('only enters the index route once when visiting /', function() {
+  expect(1);
+
   visit('/');
 
-  andThen(function(){
+  andThen(function() {
     equal(indexHitCount, 1, 'should hit index once when visiting /');
+  });
+});
+
+QUnit.test('test must not finish while asyncHelpers are pending', function () {
+  expect(2);
+
+  var async = 0;
+  var innerRan = false;
+
+  Test.adapter = QUnitAdapter.extend({
+    asyncStart() {
+      async++;
+      this._super();
+    },
+    asyncEnd() {
+      async--;
+      this._super();
+    }
+  }).create();
+
+  App.testHelpers.slowHelper();
+  andThen(function() {
+    innerRan = true;
+  });
+
+
+  equal(innerRan, false, 'should not have run yet');
+  ok(async > 0, 'should have told the adapter to pause');
+
+  if (async === 0) {
+    // If we failed the test, prevent zalgo from escaping and breaking
+    // our other tests.
+    Test.adapter.asyncStart();
+    Test.resolve().then(function() {
+      Test.adapter.asyncEnd();
+    });
+  }
+});
+
+QUnit.test('visiting a URL and then visiting a second URL with a transition should yield the correct URL', function () {
+  expect(2);
+
+  visit('/posts');
+
+  andThen(function () {
+    equal(currentURL(), '/posts', 'First visited URL is correct');
+  });
+
+  visit('/redirect');
+
+  andThen(function () {
+    equal(currentURL(), '/comments', 'Redirected to Comments URL');
   });
 });

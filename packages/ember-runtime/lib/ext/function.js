@@ -6,6 +6,7 @@
 import Ember from 'ember-metal/core'; // Ember.EXTEND_PROTOTYPES, Ember.assert
 import expandProperties from 'ember-metal/expand_properties';
 import { computed } from 'ember-metal/computed';
+import { observer } from 'ember-metal/mixin';
 
 var a_slice = Array.prototype.slice;
 var FunctionPrototype = Function.prototype;
@@ -69,12 +70,13 @@ if (Ember.EXTEND_PROTOTYPES === true || Ember.EXTEND_PROTOTYPES.Function) {
 
     @method property
     @for Function
+    @public
   */
   FunctionPrototype.property = function () {
     var ret = computed(this);
     // ComputedProperty.prototype.property expands properties; no need for us to
     // do so here.
-    return ret.property.apply(ret, arguments);
+    return ret.property(...arguments);
   };
 
   /**
@@ -101,20 +103,11 @@ if (Ember.EXTEND_PROTOTYPES === true || Ember.EXTEND_PROTOTYPES.Function) {
 
     @method observes
     @for Function
+    @public
   */
-  FunctionPrototype.observes = function () {
-    var watched = [];
-    var addWatchedProperty = function (obs) {
-      watched.push(obs);
-    };
-
-    for (var i = 0; i < arguments.length; ++i) {
-      expandProperties(arguments[i], addWatchedProperty);
-    }
-
-    this.__ember_observes__ = watched;
-
-    return this;
+  FunctionPrototype.observes = function(...args) {
+    args.push(this);
+    return observer.apply(this, args);
   };
 
   /**
@@ -141,16 +134,21 @@ if (Ember.EXTEND_PROTOTYPES === true || Ember.EXTEND_PROTOTYPES.Function) {
 
     @method observesImmediately
     @for Function
+    @private
   */
   FunctionPrototype.observesImmediately = function () {
-    for (var i = 0, l = arguments.length; i < l; i++) {
-      var arg = arguments[i];
-      Ember.assert('Immediate observers must observe internal properties only, ' +
-        'not properties on other objects.', arg.indexOf('.') === -1);
-    }
+    Ember.assert('Immediate observers must observe internal properties only, ' +
+                 'not properties on other objects.', function checkIsInternalProperty() {
+      for (var i = 0, l = arguments.length; i < l; i++) {
+        if (arguments[i].indexOf('.') !== -1) {
+          return false;
+        }
+      }
+      return true;
+    });
 
     // observes handles property expansion
-    return this.observes.apply(this, arguments);
+    return this.observes(...arguments);
   };
 
   /**
@@ -159,7 +157,7 @@ if (Ember.EXTEND_PROTOTYPES === true || Ember.EXTEND_PROTOTYPES.Function) {
     `Ember.EXTEND_PROTOTYPES.Function` is true, which is the default.
 
     You can get notified when a property change is about to happen by
-    by adding the `observesBefore` call to the end of your method
+    adding the `observesBefore` call to the end of your method
     declarations in classes that you write. For example:
 
     ```javascript
@@ -174,6 +172,7 @@ if (Ember.EXTEND_PROTOTYPES === true || Ember.EXTEND_PROTOTYPES.Function) {
 
     @method observesBefore
     @for Function
+    @private
   */
   FunctionPrototype.observesBefore = function () {
     var watched = [];
@@ -181,7 +180,7 @@ if (Ember.EXTEND_PROTOTYPES === true || Ember.EXTEND_PROTOTYPES.Function) {
       watched.push(obs);
     };
 
-    for (var i = 0; i < arguments.length; ++i) {
+    for (var i = 0, l = arguments.length; i < l; ++i) {
       expandProperties(arguments[i], addWatchedProperty);
     }
 
@@ -210,6 +209,7 @@ if (Ember.EXTEND_PROTOTYPES === true || Ember.EXTEND_PROTOTYPES.Function) {
 
     @method on
     @for Function
+    @public
   */
   FunctionPrototype.on = function () {
     var events = a_slice.call(arguments);

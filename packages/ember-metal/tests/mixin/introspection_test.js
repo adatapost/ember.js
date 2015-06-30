@@ -7,7 +7,6 @@ import {
   mixin,
   Mixin
 } from 'ember-metal/mixin';
-import EnumerableUtils from 'ember-metal/enumerable_utils';
 
 var PrivateProperty = Mixin.create({
   _foo: '_FOO'
@@ -18,11 +17,11 @@ var PublicProperty = Mixin.create({
 });
 
 var PrivateMethod = Mixin.create({
-  _fooMethod: function() {}
+  _fooMethod() {}
 });
 
 var PublicMethod = Mixin.create({
-  fooMethod: function() {}
+  fooMethod() {}
 });
 
 var BarProperties = Mixin.create({
@@ -31,25 +30,25 @@ var BarProperties = Mixin.create({
 });
 
 var BarMethods = Mixin.create({
-  _barMethod: function() {},
-  barMethod: function() {}
+  _barMethod() {},
+  barMethod() {}
 });
 
 var Combined = Mixin.create(BarProperties, BarMethods);
 
-var obj ;
+var obj;
 
 QUnit.module('Basic introspection', {
-  setup: function() {
+  setup() {
     obj = {};
     mixin(obj, PrivateProperty, PublicProperty, PrivateMethod, PublicMethod, Combined);
   }
 });
 
-test('Ember.mixins()', function() {
+QUnit.test('Ember.mixins()', function() {
 
   function mapGuids(ary) {
-    return EnumerableUtils.map(ary, function(x) { return guidFor(x); });
+    return ary.map(function(x) { return guidFor(x); });
   }
 
   deepEqual(mapGuids(Mixin.mixins(obj)), mapGuids([PrivateProperty, PublicProperty, PrivateMethod, PublicMethod, Combined, BarProperties, BarMethods]), 'should return included mixins');

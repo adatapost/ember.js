@@ -2,12 +2,12 @@ import run from 'ember-metal/run_loop';
 
 QUnit.module('system/run_loop/run_bind_test');
 
-test('Ember.run.bind builds a run-loop wrapped callback handler', function() {
+QUnit.test('Ember.run.bind builds a run-loop wrapped callback handler', function() {
   expect(3);
 
   var obj = {
     value: 0,
-    increment: function(increment) {
+    increment(increment) {
       ok(run.currentRunLoop, 'expected a run-loop');
       return this.value += increment;
     }
@@ -18,7 +18,8 @@ test('Ember.run.bind builds a run-loop wrapped callback handler', function() {
   equal(obj.value, 1);
 });
 
-test('Ember.run.bind keeps the async callback arguments', function() {
+QUnit.test('Ember.run.bind keeps the async callback arguments', function() {
+  expect(4);
 
   var asyncCallback = function(increment, increment2, increment3) {
     ok(run.currentRunLoop, 'expected a run-loop');

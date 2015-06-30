@@ -1,16 +1,26 @@
-import Ember from "ember-metal/core"; // Ember.assert, Ember.Handlebars
+import Ember from 'ember-metal/core'; // Ember.assert, Ember.Handlebars
 
-import ComponentTemplateDeprecation from "ember-views/mixins/component_template_deprecation";
-import TargetActionSupport from "ember-runtime/mixins/target_action_support";
-import View from "ember-views/views/view";
+import ComponentTemplateDeprecation from 'ember-views/mixins/component_template_deprecation';
+import TargetActionSupport from 'ember-runtime/mixins/target_action_support';
+import View from 'ember-views/views/view';
 
-import { get } from "ember-metal/property_get";
-import { set } from "ember-metal/property_set";
-import { isNone } from 'ember-metal/is_none';
+import { get } from 'ember-metal/property_get';
+import { set } from 'ember-metal/property_set';
+import isNone from 'ember-metal/is_none';
 
-import { computed } from "ember-metal/computed";
+import { computed } from 'ember-metal/computed';
 
-var a_slice = Array.prototype.slice;
+import { MUTABLE_CELL } from 'ember-views/compat/attrs-proxy';
+
+function validateAction(component, actionName) {
+  if (actionName && actionName[MUTABLE_CELL]) {
+    actionName = actionName.value;
+  }
+  Ember.assert('The default action was triggered on the component ' + component.toString() +
+               ', but the action name (' + actionName + ') was not a string.',
+               isNone(actionName) || typeof actionName === 'string' || typeof actionName === 'function');
+  return actionName;
+}
 
 /**
 @module ember
@@ -19,7 +29,7 @@ var a_slice = Array.prototype.slice;
 
 /**
   An `Ember.Component` is a view that is completely
-  isolated. Property access in its templates go
+  isolated. Properties accessed in its templates go
   to the view object and actions are targeted at
   the view object. There is no access to the
   surrounding context or outer controller; all
@@ -38,7 +48,7 @@ var a_slice = Array.prototype.slice;
   ```handlebars
   <!-- app-profile template -->
   <h1>{{person.title}}</h1>
-  <img {{bind-attr src=person.avatar}}>
+  <img src={{person.avatar}}>
   <p class='signature'>{{person.signature}}</p>
   ```
 
@@ -101,8 +111,17 @@ var a_slice = Array.prototype.slice;
   @class Component
   @namespace Ember
   @extends Ember.View
+  @public
 */
 var Component = View.extend(TargetActionSupport, ComponentTemplateDeprecation, {
+  isComponent: true,
+  /*
+    This is set so that the proto inspection in appendTemplatedView does not
+    think that it should set the components `context` to that of the parent view.
+  */
+  controller: null,
+  context: null,
+
   instrumentName: 'component',
   instrumentDisplay: computed(function() {
     if (this._debugContainerKey) {
@@ -110,15 +129,10 @@ var Component = View.extend(TargetActionSupport, ComponentTemplateDeprecation, {
     }
   }),
 
-  init: function() {
-    this._super();
-    set(this, 'origContext', get(this, 'context'));
-    set(this, 'context', this);
+  init() {
+    this._super.apply(this, arguments);
     set(this, 'controller', this);
-  },
-
-  defaultLayout: function(context, options){
-    Ember.Handlebars.helpers['yield'].call(context, options);
+    set(this, 'context', this);
   },
 
   /**
@@ -139,17 +153,35 @@ var Component = View.extend(TargetActionSupport, ComponentTemplateDeprecation, {
 
   @deprecated
   @property template
+  @public
   */
-  template: computed(function(key, value) {
-    if (value !== undefined) { return value; }
+  template: computed('_template', {
+    get() {
+      Ember.deprecate(`Accessing 'template' in ${this} is deprecated. To determine if a block was specified to ${this} please use '{{#if hasBlock}}' in the components layout.`);
 
-    var templateName = get(this, 'templateName'),
-        template = this.templateForName(templateName, 'template');
+      return get(this, '_template');
+    },
 
-    Ember.assert("You specified the templateName " + templateName + " for " + this + ", but it did not exist.", !templateName || template);
+    set(key, value) {
+      return set(this, '_template', value);
+    }
+  }),
 
-    return template || get(this, 'defaultTemplate');
-  }).property('templateName'),
+  _template: computed('templateName', {
+    get() {
+      if (get(this, '_deprecatedFlagForBlockProvided')) {
+        return true;
+      }
+      var templateName = get(this, 'templateName');
+      var template = this.templateForName(templateName, 'template');
+
+      Ember.assert('You specified the templateName ' + templateName + ' for ' + this + ', but it did not exist.', !templateName || !!template);
+      return template || get(this, 'defaultTemplate');
+    },
+    set(key, value) {
+      return value;
+    }
+  }),
 
   /**
   Specifying a components `templateName` is deprecated without also
@@ -157,36 +189,9 @@ var Component = View.extend(TargetActionSupport, ComponentTemplateDeprecation, {
 
   @deprecated
   @property templateName
+  @public
   */
   templateName: null,
-
-  // during render, isolate keywords
-  cloneKeywords: function() {
-    return {
-      view: this,
-      controller: this
-    };
-  },
-
-  _yield: function(context, options) {
-    var view = options.data.view,
-        parentView = this._parentView,
-        template = get(this, 'template');
-
-    if (template) {
-      Ember.assert("A Component must have a parent view in order to yield.", parentView);
-
-      view.appendChild(View, {
-        isVirtual: true,
-        tagName: '',
-        _contextView: parentView,
-        template: template,
-        context: options.data.insideGroup ? get(this, 'origContext') : get(parentView, 'context'),
-        controller: get(parentView, 'controller'),
-        templateData: { keywords: parentView.cloneKeywords(), insideGroup: options.data.insideGroup }
-      });
-    }
-  },
 
   /**
     If the component is currently inserted into the DOM of a parent view, this
@@ -195,11 +200,14 @@ var Component = View.extend(TargetActionSupport, ComponentTemplateDeprecation, {
     @property targetObject
     @type Ember.Controller
     @default null
+    @private
   */
-  targetObject: computed(function(key) {
-    var parentView = get(this, '_parentView');
+  targetObject: computed('controller', function(key) {
+    if (this._targetObject) { return this._targetObject; }
+    if (this._controller) { return this._controller; }
+    var parentView = get(this, 'parentView');
     return parentView ? get(parentView, 'controller') : null;
-  }).property('_parentView'),
+  }),
 
   /**
     Triggers a named action on the controller context where the component is used if
@@ -212,7 +220,7 @@ var Component = View.extend(TargetActionSupport, ComponentTemplateDeprecation, {
 
     ```javascript
     App.PlayButtonComponent = Ember.Component.extend({
-      click: function(){
+      click: function() {
         if (this.get('isPlaying')) {
           this.sendAction('play');
         } else {
@@ -239,11 +247,11 @@ var Component = View.extend(TargetActionSupport, ComponentTemplateDeprecation, {
     ```javascript
     App.ApplicationController = Ember.Controller.extend({
       actions: {
-        musicStarted: function(){
+        musicStarted: function() {
           // called when the play button is clicked
           // and the music started playing
         },
-        musicStopped: function(){
+        musicStopped: function() {
           // called when the play button is clicked
           // and the music stopped playing
         }
@@ -256,7 +264,7 @@ var Component = View.extend(TargetActionSupport, ComponentTemplateDeprecation, {
 
     ```javascript
     App.NextButtonComponent = Ember.Component.extend({
-      click: function(){
+      click: function() {
         this.sendAction();
       }
     });
@@ -270,7 +278,7 @@ var Component = View.extend(TargetActionSupport, ComponentTemplateDeprecation, {
     ```javascript
     App.ApplicationController = Ember.Controller.extend({
       actions: {
-        playNextSongInAlbum: function(){
+        playNextSongInAlbum: function() {
           ...
         }
       }
@@ -280,33 +288,131 @@ var Component = View.extend(TargetActionSupport, ComponentTemplateDeprecation, {
     @method sendAction
     @param [action] {String} the action to trigger
     @param [context] {*} a context to send with the action
+    @public
   */
-  sendAction: function(action) {
-    var actionName,
-        contexts = a_slice.call(arguments, 1);
+  sendAction(action, ...contexts) {
+    var actionName;
 
     // Send the default action
     if (action === undefined) {
-      actionName = get(this, 'action');
-      Ember.assert("The default action was triggered on the component " + this.toString() +
-                   ", but the action name (" + actionName + ") was not a string.",
-                   isNone(actionName) || typeof actionName === 'string');
-    } else {
-      actionName = get(this, action);
-      Ember.assert("The " + action + " action was triggered on the component " +
-                   this.toString() + ", but the action name (" + actionName +
-                   ") was not a string.",
-                   isNone(actionName) || typeof actionName === 'string');
+      action = 'action';
     }
+    actionName = get(this, 'attrs.' + action) || get(this, action);
+    actionName = validateAction(this, actionName);
 
     // If no action name for that action could be found, just abort.
     if (actionName === undefined) { return; }
 
-    this.triggerAction({
-      action: actionName,
-      actionContext: contexts
-    });
+    if (typeof actionName === 'function') {
+      actionName.apply(null, contexts);
+    } else {
+      this.triggerAction({
+        action: actionName,
+        actionContext: contexts
+      });
+    }
+  },
+
+  send(actionName, ...args) {
+    var target;
+    var hasAction = this._actions && this._actions[actionName];
+
+    if (hasAction) {
+      var shouldBubble = this._actions[actionName].apply(this, args) === true;
+      if (!shouldBubble) { return; }
+    }
+
+    if (target = get(this, 'target')) {
+      Ember.assert('The `target` for ' + this + ' (' + target +
+                   ') does not have a `send` method', typeof target.send === 'function');
+      target.send(...arguments);
+    } else {
+      if (!hasAction) {
+        throw new Error(Ember.inspect(this) + ' had no action handler for: ' + actionName);
+      }
+    }
   }
+
+  /**
+    Returns true when the component was invoked with a block template.
+
+    Example (`hasBlock` will be `false`):
+
+    ```hbs
+    {{! templates/application.hbs }}
+
+    {{foo-bar}}
+
+    {{! templates/components/foo-bar.js }}
+    {{#if hasBlock}}
+      This will not be printed, because no block was provided
+    {{/if}}
+    ```
+
+    Example (`hasBlock` will be `true`):
+
+    ```hbs
+    {{! templates/application.hbs }}
+
+    {{#foo-bar}}
+      Hi!
+    {{/foo-bar}}
+
+    {{! templates/components/foo-bar.js }}
+    {{#if hasBlock}}
+      This will be printed because a block was provided
+      {{yield}}
+    {{/if}}
+    ```
+
+    @public
+    @property hasBlock
+    @returns Boolean
+  */
+
+  /**
+    Returns true when the component was invoked with a block parameter
+    supplied.
+
+    Example (`hasBlockParams` will be `false`):
+
+    ```hbs
+    {{! templates/application.hbs }}
+
+    {{#foo-bar}}
+      No block parameter.
+    {{/foo-bar}}
+
+    {{! templates/components/foo-bar.js }}
+    {{#if hasBlockParams}}
+      This will not be printed, because no block was provided
+      {{yield this}}
+    {{/if}}
+    ```
+
+    Example (`hasBlockParams` will be `true`):
+
+    ```hbs
+    {{! templates/application.hbs }}
+
+    {{#foo-bar as |foo|}}
+      Hi!
+    {{/foo-bar}}
+
+    {{! templates/components/foo-bar.js }}
+    {{#if hasBlockParams}}
+      This will be printed because a block was provided
+      {{yield this}}
+    {{/if}}
+    ```
+    @public
+    @property hasBlockParams
+    @returns Boolean
+  */
+});
+
+Component.reopenClass({
+  isComponentFactory: true
 });
 
 export default Component;

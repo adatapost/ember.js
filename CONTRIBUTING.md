@@ -2,12 +2,16 @@
 
 This is the issue tracker for Ember.js. The Ember.js community uses this site
 to collect and track bugs and discussions of new features. If you are having
-difficulties using Ember.js or have a question about usage please ask a
+difficulties using Ember.js or have a question about usage, please ask a
 question on Stack Overflow: http://stackoverflow.com/questions/ask?tags=ember.js
 
 The Ember.js community is very active on Stack Overflow and most questions
 receive attention the same day they're posted:
 http://stackoverflow.com/questions/tagged/ember.js
+
+# Issue Labeling
+
+Ember uses [StandardIssueLabels](https://github.com/wagenet/StandardIssueLabels) for Github Issues.
 
 # Issues
 
@@ -23,8 +27,10 @@ this bug already.
 3. Provide JSFiddle or JSBin demo that specifically shows the problem. This
 demo should be fully operational with the exception of the bug you want to
 demonstrate. The more pared down, the better.
-Preconfigured starting points for the latest Ember: [JSFiddle](http://jsfiddle.net/NQKvy/) | [JSBin](http://emberjs.jsbin.com) (may not work with older IE versions due to MIME type issues).
-Issues with fiddles are prioritized.
+Preconfigured starting points for the latest Ember: [JSFiddle](https://jsfiddle.net/dfcaus7t/1/) | [JSBin](http://emberjs.jsbin.com) (may not work with older IE versions due to MIME type issues).
+If it is not possible to produce a fiddle, please make sure you provide very
+specific steps to reproduce the error. If we cannot reproduce it, we will
+close the ticket.
 
 4. Your issue will be verified. The provided example will be tested for
 correctness. The Ember team will work with you until your issue can
@@ -65,6 +71,7 @@ Building Ember is quite simple.
 ```sh
 cd ember.js
 npm install
+bower install
 npm run-script build
 ```
 
@@ -75,7 +82,7 @@ We love pull requests. Here's a quick guide:
 1. Fork the repo.
 
 2. Run the tests. We only take pull requests with passing tests, and it's great
-to know that you have a clean slate: `npm install && npm test`.
+to know that you have a clean slate: `npm install && bower install && npm test`.
 (To see tests in the browser, run `npm start` and open `http://localhost:4200/tests/index.html`.)
 
 3. Add a test for your change. Only refactoring and documentation changes
@@ -83,9 +90,14 @@ require no new tests. If you are adding functionality or fixing a bug, we need
 a test! If your change is a new feature, please
 [wrap it in a feature flag](http://emberjs.com/guides/contributing/adding-new-features/).
 
-4. Make the test pass.
+4. Make sure to check out the
+   [JavaScript Style Guide](https://github.com/emberjs/ember.js/blob/master/STYLEGUIDE.md) and
+   ensure that your code complies with the rules. If you missed a rule or two, don't worry, our
+   tests will warn you.
 
-5. Commit your changes. Please use an appropriate commit prefix.
+5. Make the test pass.
+
+6. Commit your changes. Please use an appropriate commit prefix.
 If your pull request fixes an issue specify it in the commit message. Some examples:
 
   ```
@@ -95,11 +107,10 @@ If your pull request fixes an issue specify it in the commit message. Some examp
   [SECURITY CVE-111-1111] Message
   ```
 
-  For more information about commit prefixes see
-  [Robert Jacksons slides on contributing to Ember](https://speakerdeck.com/rwjblue/contributing-to-ember).
+  For more information about commit prefixes see [the appendix](#commit-tagging).
 
 
-6. Push to your fork and submit a pull request. Please provide us with some
+7. Push to your fork and submit a pull request. Please provide us with some
 explanation of why you made the changes you made. For new features make sure to
 explain a standard use case to us.
 
@@ -150,3 +161,38 @@ Code words are:
 And in case we didn't emphasize it enough: we love tests!
 
 NOTE: Partially copied from https://raw.github.com/thoughtbot/factory_girl_rails/master/CONTRIBUTING.md
+
+
+# Appendix
+
+## Commit Tagging
+
+All commits should be tagged. Tags are denoted by square brackets (`[]`) and come at the start of the commit message.
+
+### Bug Fixes
+
+In general bug fixes are pulled into the beta branch. As such, the prefix is: `[BUGFIX beta]`. If a bug fix is a serious regression that requires a new patch release, `[BUGFIX release]` can be used instead.
+
+For bugs related to canary features, follow the prefixing rules for features.
+
+### Cleanup
+
+Cleanup commits are for removing deprecated functionality and should be tagged
+as `[CLEANUP beta]`.
+
+### Features
+
+All additions and fixes for features in canary should be tagged as `[FEATURE name]` where name is the same as the flag for that feature.
+
+### Documentation
+
+Documentation commits are tagged as `[DOC channel]` where channel is `canary`,
+`beta`, or `release`. If no release is provided `canary` is assumed. The channel should be the most stable release that this documentation change applies to.
+
+### Security
+
+Security commits will be tagged as `[SECURITY cve]`. Please do not submit security related PRs without coordinating with the security team. See the [Security Policy](http://emberjs.com/security/) for more information.
+
+### Other
+
+In general almost all commits should fall into one of these categories. In the cases where they don't please submit your PR untagged. An Ember contributor will let you know if tagging is required.

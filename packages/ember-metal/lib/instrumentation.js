@@ -1,5 +1,4 @@
-import Ember from "ember-metal/core";
-import { tryCatchFinally } from "ember-metal/utils";
+import Ember from 'ember-metal/core';
 
 /**
   The purpose of the Ember Instrumentation module is
@@ -46,11 +45,14 @@ import { tryCatchFinally } from "ember-metal/utils";
   @class Instrumentation
   @namespace Ember
   @static
+  @private
 */
-var subscribers = [], cache = {};
+export var subscribers = [];
+var cache = {};
 
 var populateListeners = function(name) {
-  var listeners = [], subscriber;
+  var listeners = [];
+  var subscriber;
 
   for (var i=0, l=subscribers.length; i<l; i++) {
     subscriber = subscribers[i];
@@ -67,7 +69,9 @@ var time = (function() {
   var perf = 'undefined' !== typeof window ? window.performance || {} : {};
   var fn = perf.now || perf.mozNow || perf.webkitNow || perf.msNow || perf.oNow;
   // fn.bind will be available in all the browsers that support the advanced window.performance... ;-)
-  return fn ? fn.bind(perf) : function() { return +new Date(); };
+  return fn ? fn.bind(perf) : () => {
+    return +new Date();
+  };
 })();
 
 /**
@@ -77,57 +81,83 @@ var time = (function() {
   @namespace Ember.Instrumentation
 
   @param {String} [name] Namespaced event name.
-  @param {Object} payload
+  @param {Object} _payload
   @param {Function} callback Function that you're instrumenting.
   @param {Object} binding Context that instrument function is called with.
+  @private
 */
-export function instrument(name, payload, callback, binding) {
-  var listeners = cache[name], timeName, ret;
-
-  // ES6TODO: Docs. What is this?
-  if (Ember.STRUCTURED_PROFILE) {
-    timeName = name + ": " + payload.object;
-    console.time(timeName);
+export function instrument(name, _payload, callback, binding) {
+  if (arguments.length <= 3 && typeof _payload === 'function') {
+    binding = callback;
+    callback = _payload;
+    _payload = undefined;
   }
+  if (subscribers.length === 0) {
+    return callback.call(binding);
+  }
+  var payload = _payload || {};
+  var finalizer = _instrumentStart(name, () => payload);
+
+  if (finalizer) {
+    return withFinalizer(callback, finalizer, payload, binding);
+  } else {
+    return callback.call(binding);
+  }
+}
+
+function withFinalizer(callback, finalizer, payload, binding) {
+  try {
+    return callback.call(binding);
+  } catch(e) {
+    payload.exception = e;
+    return payload;
+  } finally {
+    return finalizer();
+  }
+}
+
+// private for now
+export function _instrumentStart(name, _payload) {
+  var listeners = cache[name];
 
   if (!listeners) {
     listeners = populateListeners(name);
   }
 
   if (listeners.length === 0) {
-    ret = callback.call(binding);
-    if (Ember.STRUCTURED_PROFILE) { console.timeEnd(timeName); }
-    return ret;
+    return;
   }
 
-  var beforeValues = [], listener, i, l;
+  var payload = _payload();
 
-  function tryable() {
+  var STRUCTURED_PROFILE = Ember.STRUCTURED_PROFILE;
+  var timeName;
+  if (STRUCTURED_PROFILE) {
+    timeName = name + ': ' + payload.object;
+    console.time(timeName);
+  }
+
+  var l = listeners.length;
+  var beforeValues = new Array(l);
+  var i, listener;
+  var timestamp = time();
+  for (i=0; i<l; i++) {
+    listener = listeners[i];
+    beforeValues[i] = listener.before(name, timestamp, payload);
+  }
+
+  return function _instrumentEnd() {
+    var i, l, listener;
+    var timestamp = time();
     for (i=0, l=listeners.length; i<l; i++) {
       listener = listeners[i];
-      beforeValues[i] = listener.before(name, time(), payload);
+      listener.after(name, timestamp, payload, beforeValues[i]);
     }
 
-    return callback.call(binding);
-  }
-
-  function catchable(e) {
-    payload = payload || {};
-    payload.exception = e;
-  }
-
-  function finalizer() {
-    for (i=0, l=listeners.length; i<l; i++) {
-      listener = listeners[i];
-      listener.after(name, time(), payload, beforeValues[i]);
-    }
-
-    if (Ember.STRUCTURED_PROFILE) {
+    if (STRUCTURED_PROFILE) {
       console.timeEnd(timeName);
     }
-  }
-
-  return tryCatchFinally(tryable, catchable, finalizer);
+  };
 }
 
 /**
@@ -140,25 +170,28 @@ export function instrument(name, payload, callback, binding) {
   @param {Object} [object] Before and After hooks.
 
   @return {Subscriber}
+  @private
 */
 export function subscribe(pattern, object) {
-  var paths = pattern.split("."), path, regex = [];
+  var paths = pattern.split('.');
+  var path;
+  var regex = [];
 
   for (var i=0, l=paths.length; i<l; i++) {
     path = paths[i];
-    if (path === "*") {
-      regex.push("[^\\.]*");
+    if (path === '*') {
+      regex.push('[^\\.]*');
     } else {
       regex.push(path);
     }
   }
 
-  regex = regex.join("\\.");
-  regex = regex + "(\\..*)?";
+  regex = regex.join('\\.');
+  regex = regex + '(\\..*)?';
 
   var subscriber = {
     pattern: pattern,
-    regex: new RegExp("^" + regex + "$"),
+    regex: new RegExp('^' + regex + '$'),
     object: object
   };
 
@@ -175,6 +208,7 @@ export function subscribe(pattern, object) {
   @namespace Ember.Instrumentation
 
   @param {Object} [subscriber]
+  @private
 */
 export function unsubscribe(subscriber) {
   var index;
@@ -194,8 +228,9 @@ export function unsubscribe(subscriber) {
 
   @method reset
   @namespace Ember.Instrumentation
+  @private
 */
 export function reset() {
-  subscribers = [];
+  subscribers.length = 0;
   cache = {};
 }

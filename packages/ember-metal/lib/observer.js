@@ -1,15 +1,14 @@
 import {
   watch,
   unwatch
-} from "ember-metal/watching";
-import { map } from "ember-metal/array";
+} from 'ember-metal/watching';
 import {
   listenersFor,
   addListener,
   removeListener,
   suspendListeners,
   suspendListener
-} from "ember-metal/events";
+} from 'ember-metal/events';
 /**
 @module ember-metal
 */
@@ -29,9 +28,10 @@ function beforeEvent(keyName) {
   @method addObserver
   @for Ember
   @param obj
-  @param {String} path
-  @param {Object|Function} targetOrMethod
+  @param {String} _path
+  @param {Object|Function} target
   @param {Function|String} [method]
+  @public
 */
 export function addObserver(obj, _path, target, method) {
   addListener(obj, changeEvent(_path), target, method);
@@ -49,12 +49,13 @@ export function observersFor(obj, path) {
   @for Ember
   @param obj
   @param {String} path
-  @param {Object|Function} targetOrMethod
+  @param {Object|Function} target
   @param {Function|String} [method]
+  @public
 */
-export function removeObserver(obj, _path, target, method) {
-  unwatch(obj, _path);
-  removeListener(obj, changeEvent(_path), target, method);
+export function removeObserver(obj, path, target, method) {
+  unwatch(obj, path);
+  removeListener(obj, changeEvent(path), target, method);
 
   return this;
 }
@@ -64,12 +65,13 @@ export function removeObserver(obj, _path, target, method) {
   @for Ember
   @param obj
   @param {String} path
-  @param {Object|Function} targetOrMethod
+  @param {Object|Function} target
   @param {Function|String} [method]
+  @private
 */
-export function addBeforeObserver(obj, _path, target, method) {
-  addListener(obj, beforeEvent(_path), target, method);
-  watch(obj, _path);
+export function addBeforeObserver(obj, path, target, method) {
+  addListener(obj, beforeEvent(path), target, method);
+  watch(obj, path);
 
   return this;
 }
@@ -87,12 +89,12 @@ export function _suspendObserver(obj, path, target, method, callback) {
 }
 
 export function _suspendBeforeObservers(obj, paths, target, method, callback) {
-  var events = map.call(paths, beforeEvent);
+  var events = paths.map(beforeEvent);
   return suspendListeners(obj, events, target, method, callback);
 }
 
 export function _suspendObservers(obj, paths, target, method, callback) {
-  var events = map.call(paths, changeEvent);
+  var events = paths.map(changeEvent);
   return suspendListeners(obj, events, target, method, callback);
 }
 
@@ -105,12 +107,13 @@ export function beforeObserversFor(obj, path) {
   @for Ember
   @param obj
   @param {String} path
-  @param {Object|Function} targetOrMethod
+  @param {Object|Function} target
   @param {Function|String} [method]
+  @private
 */
-export function removeBeforeObserver(obj, _path, target, method) {
-  unwatch(obj, _path);
-  removeListener(obj, beforeEvent(_path), target, method);
+export function removeBeforeObserver(obj, path, target, method) {
+  unwatch(obj, path);
+  removeListener(obj, beforeEvent(path), target, method);
 
   return this;
 }

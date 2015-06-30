@@ -1,8 +1,8 @@
-import Ember from "ember-metal/core";
+import Ember from 'ember-metal/core';
 import {get} from 'ember-metal/property_get';
 import {set} from 'ember-metal/property_set';
-import run from "ember-metal/run_loop";
-import {destroy} from "ember-metal/watching";
+import run from 'ember-metal/run_loop';
+import {destroy} from 'ember-metal/watching';
 import EmberObject from 'ember-runtime/system/object';
 
 /*
@@ -27,133 +27,133 @@ var TestNamespace, originalLookup, lookup;
 
 var bindModuleOpts = {
 
-  setup: function() {
+  setup() {
     originalLookup = Ember.lookup;
     Ember.lookup = lookup = {};
 
     testObject = EmberObject.create({
-      foo: "bar",
-      bar: "foo",
+      foo: 'bar',
+      bar: 'foo',
       extraObject: null
     });
 
     fromObject = EmberObject.create({
-      bar: "foo",
+      bar: 'foo',
       extraObject: null
-    }) ;
+    });
 
     extraObject = EmberObject.create({
-      foo: "extraObjectValue"
-    }) ;
+      foo: 'extraObjectValue'
+    });
 
     lookup['TestNamespace'] = TestNamespace = {
       fromObject: fromObject,
       testObject: testObject
-    } ;
+    };
   },
 
-  teardown: function() {
-    testObject = fromObject = extraObject = null ;
+  teardown() {
+    testObject = fromObject = extraObject = null;
     Ember.lookup = originalLookup;
   }
 
 };
 
-QUnit.module("bind() method", bindModuleOpts);
+QUnit.module('bind() method', bindModuleOpts);
 
-test("bind(TestNamespace.fromObject.bar) should follow absolute path", function() {
+QUnit.test('bind(TestNamespace.fromObject.bar) should follow absolute path', function() {
   run(function() {
     // create binding
-    testObject.bind("foo", "TestNamespace.fromObject.bar");
+    testObject.bind('foo', 'TestNamespace.fromObject.bar');
 
     // now make a change to see if the binding triggers.
-    set(fromObject, "bar", "changedValue");
+    set(fromObject, 'bar', 'changedValue');
   });
 
-  equal("changedValue", get(testObject, "foo"), "testObject.foo");
+  equal('changedValue', get(testObject, 'foo'), 'testObject.foo');
 });
 
-test("bind(.bar) should bind to relative path", function() {
+QUnit.test('bind(.bar) should bind to relative path', function() {
   run(function() {
     // create binding
-    testObject.bind("foo", "bar") ;
+    testObject.bind('foo', 'bar');
 
     // now make a change to see if the binding triggers.
-    set(testObject, "bar", "changedValue") ;
+    set(testObject, 'bar', 'changedValue');
   });
 
-  equal("changedValue", get(testObject, "foo"), "testObject.foo");
+  equal('changedValue', get(testObject, 'foo'), 'testObject.foo');
 });
 
 var fooBindingModuleOpts = {
 
-  setup: function() {
+  setup() {
     originalLookup = Ember.lookup;
     Ember.lookup = lookup = {};
 
     TestObject = EmberObject.extend({
-      foo: "bar",
-      bar: "foo",
+      foo: 'bar',
+      bar: 'foo',
       extraObject: null
     });
 
     fromObject = EmberObject.create({
-      bar: "foo",
+      bar: 'foo',
       extraObject: null
-    }) ;
+    });
 
     extraObject = EmberObject.create({
-      foo: "extraObjectValue"
-    }) ;
+      foo: 'extraObjectValue'
+    });
 
     lookup['TestNamespace'] = TestNamespace = {
       fromObject: fromObject,
       testObject: TestObject
-    } ;
+    };
   },
 
-  teardown: function() {
+  teardown() {
     Ember.lookup = originalLookup;
-    TestObject = fromObject = extraObject = null ;
-  //  delete TestNamespace ;
+    TestObject = fromObject = extraObject = null;
+    //  delete TestNamespace;
   }
 
 };
 
-QUnit.module("fooBinding method", fooBindingModuleOpts);
+QUnit.module('fooBinding method', fooBindingModuleOpts);
 
 
-test("fooBinding: TestNamespace.fromObject.bar should follow absolute path", function() {
+QUnit.test('fooBinding: TestNamespace.fromObject.bar should follow absolute path', function() {
   // create binding
   run(function() {
-    testObject = TestObject.createWithMixins({
-      fooBinding: "TestNamespace.fromObject.bar"
-    }) ;
+    testObject = TestObject.extend({
+      fooBinding: 'TestNamespace.fromObject.bar'
+    }).create();
 
     // now make a change to see if the binding triggers.
-    set(fromObject, "bar", "changedValue") ;
+    set(fromObject, 'bar', 'changedValue');
   });
 
-  equal("changedValue", get(testObject, "foo"), "testObject.foo");
+  equal('changedValue', get(testObject, 'foo'), 'testObject.foo');
 });
 
-test("fooBinding: .bar should bind to relative path", function() {
+QUnit.test('fooBinding: .bar should bind to relative path', function() {
   run(function() {
-    testObject = TestObject.createWithMixins({
-      fooBinding: "bar"
-    });
+    testObject = TestObject.extend({
+      fooBinding: 'bar'
+    }).create();
     // now make a change to see if the binding triggers.
-    set(testObject, "bar", "changedValue");
+    set(testObject, 'bar', 'changedValue');
   });
 
-  equal("changedValue", get(testObject, "foo"), "testObject.foo");
+  equal('changedValue', get(testObject, 'foo'), 'testObject.foo');
 });
 
-test('fooBinding: should disconnect bindings when destroyed', function () {
+QUnit.test('fooBinding: should disconnect bindings when destroyed', function () {
   run(function() {
-    testObject = TestObject.createWithMixins({
-      fooBinding: "TestNamespace.fromObject.bar"
-    });
+    testObject = TestObject.extend({
+      fooBinding: 'TestNamespace.fromObject.bar'
+    }).create();
 
     set(TestNamespace.fromObject, 'bar', 'BAZ');
   });

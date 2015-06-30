@@ -1,17 +1,17 @@
 import Ember from 'ember-metal/core';
-import testBoth from 'ember-metal/tests/props_helper';
+import { testBoth } from 'ember-metal/tests/props_helper';
 import {
   Binding,
   bind
-} from "ember-metal/binding";
+} from 'ember-metal/binding';
 import run from 'ember-metal/run_loop';
-import { create } from 'ember-metal/platform';
 import { set } from 'ember-metal/property_set';
 import { get } from 'ember-metal/property_get';
-import { rewatch } from "ember-metal/watching";
 
 function performTest(binding, a, b, get, set, connect) {
-  if (connect === undefined) connect = function() {binding.connect(a);};
+  if (connect === undefined) {
+    connect = function() {binding.connect(a);};
+  }
 
   ok(!run.currentRunLoop, 'performTest should not have a currentRunLoop');
 
@@ -37,12 +37,12 @@ function performTest(binding, a, b, get, set, connect) {
 
 var originalLookup, lookup, GlobalB;
 
-QUnit.module("Ember.Binding", {
-  setup: function(){
+QUnit.module('Ember.Binding', {
+  setup() {
     originalLookup = Ember.lookup;
     Ember.lookup = lookup = {};
   },
-  teardown: function(){
+  teardown() {
     lookup = null;
     Ember.lookup = originalLookup;
   }
@@ -104,32 +104,7 @@ testBoth('Calling connect more than once', function(get, set) {
   });
 });
 
-testBoth('Bindings should be inherited', function(get, set) {
-
-  var a = { foo: 'FOO', b: { bar: 'BAR' } };
-  var binding = new Binding('foo', 'b.bar');
-  var a2;
-
-  run(function () {
-    binding.connect(a);
-
-    a2 = create(a);
-    rewatch(a2);
-  });
-
-  equal(get(a2, 'foo'), "BAR", "Should have synced binding on child");
-  equal(get(a,  'foo'), "BAR", "Should NOT have synced binding on parent");
-
-  run(function () {
-    set(a2, 'b', { bar: 'BAZZ' });
-  });
-
-  equal(get(a2, 'foo'), "BAZZ", "Should have synced binding on child");
-  equal(get(a,  'foo'), "BAR", "Should NOT have synced binding on parent");
-
-});
-
-test('inherited bindings should sync on create', function() {
+QUnit.test('inherited bindings should sync on create', function() {
   var a;
   run(function () {
     var A = function() {

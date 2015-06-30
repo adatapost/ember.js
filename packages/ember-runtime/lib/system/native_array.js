@@ -3,28 +3,23 @@
 @submodule ember-runtime
 */
 
-import Ember from "ember-metal/core"; // Ember.EXTEND_PROTOTYPES
-
-import { get } from "ember-metal/property_get";
-import { set } from "ember-metal/property_set";
-import {
-  _replace as replace,
-  forEach
-} from "ember-metal/enumerable_utils";
-import { Mixin } from "ember-metal/mixin";
-import EmberArray from "ember-runtime/mixins/array";
-import MutableArray from "ember-runtime/mixins/mutable_array";
-import Observable from "ember-runtime/mixins/observable";
-import Copyable from "ember-runtime/mixins/copyable";
-import { FROZEN_ERROR } from "ember-runtime/mixins/freezable";
-import copy from "ember-runtime/copy";
+import Ember from 'ember-metal/core'; // Ember.EXTEND_PROTOTYPES
+import { _replace as replace } from 'ember-metal/replace';
+import { get } from 'ember-metal/property_get';
+import { Mixin } from 'ember-metal/mixin';
+import EmberArray from 'ember-runtime/mixins/array';
+import MutableArray from 'ember-runtime/mixins/mutable_array';
+import Observable from 'ember-runtime/mixins/observable';
+import Copyable from 'ember-runtime/mixins/copyable';
+import { FROZEN_ERROR } from 'ember-runtime/mixins/freezable';
+import copy from 'ember-runtime/copy';
 
 // Add Ember.Array to Array.prototype. Remove methods with native
 // implementations and supply some more optimized versions of generic methods
 // because they are so common.
 
 /**
-  The NativeArray mixin contains the properties needed to to make the native
+  The NativeArray mixin contains the properties needed to make the native
   Array support Ember.MutableArray and all of its dependent APIs. Unless you
   have `Ember.EXTEND_PROTOTYPES` or `Ember.EXTEND_PROTOTYPES.Array` set to
   false, this will be applied automatically. Otherwise you can apply the mixin
@@ -35,25 +30,32 @@ import copy from "ember-runtime/copy";
   @uses Ember.MutableArray
   @uses Ember.Observable
   @uses Ember.Copyable
+  @public
 */
 var NativeArray = Mixin.create(MutableArray, Observable, Copyable, {
 
   // because length is a built-in property we need to know to just get the
   // original property.
-  get: function(key) {
-    if (key==='length') return this.length;
-    else if ('number' === typeof key) return this[key];
-    else return this._super(key);
+  get(key) {
+    if (key==='length') {
+      return this.length;
+    } else if ('number' === typeof key) {
+      return this[key];
+    } else {
+      return this._super(key);
+    }
   },
 
-  objectAt: function(idx) {
+  objectAt(idx) {
     return this[idx];
   },
 
   // primitive for array support.
-  replace: function(idx, amt, objects) {
+  replace(idx, amt, objects) {
 
-    if (this.isFrozen) throw FROZEN_ERROR;
+    if (this.isFrozen) {
+      throw FROZEN_ERROR;
+    }
 
     // if we replaced exactly the same number of items, then pass only the
     // replaced range. Otherwise, pass the full remaining array length
@@ -73,45 +75,20 @@ var NativeArray = Mixin.create(MutableArray, Observable, Copyable, {
 
   // If you ask for an unknown property, then try to collect the value
   // from member items.
-  unknownProperty: function(key, value) {
-    var ret;// = this.reducedProperty(key, value) ;
-    if ((value !== undefined) && ret === undefined) {
+  unknownProperty(key, value) {
+    var ret;// = this.reducedProperty(key, value);
+    if (value !== undefined && ret === undefined) {
       ret = this[key] = value;
     }
-    return ret ;
+    return ret;
   },
 
-  // If browser did not implement indexOf natively, then override with
-  // specialized version
-  indexOf: function(object, startAt) {
-    var idx, len = this.length;
+  indexOf: Array.prototype.indexOf,
+  lastIndexOf: Array.prototype.lastIndexOf,
 
-    if (startAt === undefined) startAt = 0;
-    else startAt = (startAt < 0) ? Math.ceil(startAt) : Math.floor(startAt);
-    if (startAt < 0) startAt += len;
-
-    for(idx=startAt;idx<len;idx++) {
-      if (this[idx] === object) return idx ;
-    }
-    return -1;
-  },
-
-  lastIndexOf: function(object, startAt) {
-    var idx, len = this.length;
-
-    if (startAt === undefined) startAt = len-1;
-    else startAt = (startAt < 0) ? Math.ceil(startAt) : Math.floor(startAt);
-    if (startAt < 0) startAt += len;
-
-    for(idx=startAt;idx>=0;idx--) {
-      if (this[idx] === object) return idx ;
-    }
-    return -1;
-  },
-
-  copy: function(deep) {
+  copy(deep) {
     if (deep) {
-      return this.map(function(item) { return copy(item, true); });
+      return this.map((item) => copy(item, true));
     }
 
     return this.slice();
@@ -120,13 +97,13 @@ var NativeArray = Mixin.create(MutableArray, Observable, Copyable, {
 
 // Remove any methods implemented natively so we don't override them
 var ignore = ['length'];
-forEach(NativeArray.keys(), function(methodName) {
-  if (Array.prototype[methodName]) ignore.push(methodName);
+NativeArray.keys().forEach((methodName) => {
+  if (Array.prototype[methodName]) {
+    ignore.push(methodName);
+  }
 });
 
-if (ignore.length>0) {
-  NativeArray = NativeArray.without.apply(NativeArray, ignore);
-}
+NativeArray = NativeArray.without.apply(NativeArray, ignore);
 
 /**
   Creates an `Ember.NativeArray` from an Array like object.
@@ -144,7 +121,7 @@ if (ignore.length>0) {
     classNames: ['pagination'],
 
     init: function() {
-      this._super();
+      this._super.apply(this, arguments);
       if (!this.get('content')) {
         this.set('content', Ember.A());
       }
@@ -155,6 +132,7 @@ if (ignore.length>0) {
   @method A
   @for Ember
   @return {Ember.NativeArray}
+  @public
 */
 var A = function(arr) {
   if (arr === undefined) { arr = []; }
@@ -179,6 +157,7 @@ var A = function(arr) {
   @for Ember.NativeArray
   @static
   @return {void}
+  @private
 */
 NativeArray.activate = function() {
   NativeArray.apply(Array.prototype);

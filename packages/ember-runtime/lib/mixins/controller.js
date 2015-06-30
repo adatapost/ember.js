@@ -1,10 +1,7 @@
-import Ember from "ember-metal/core"; // Ember.assert, Ember.deprecate
-import { get } from "ember-metal/property_get";
-import EmberObject from "ember-runtime/system/object";
-import { Mixin } from "ember-metal/mixin";
-import { computed } from "ember-metal/computed";
-import ActionHandler from "ember-runtime/mixins/action_handler";
-import ControllerContentModelAliasDeprecation from "ember-runtime/mixins/controller_content_model_alias_deprecation";
+import { Mixin } from 'ember-metal/mixin';
+import alias from 'ember-metal/alias';
+import ActionHandler from 'ember-runtime/mixins/action_handler';
+import ControllerContentModelAliasDeprecation from 'ember-runtime/mixins/controller_content_model_alias_deprecation';
 
 /**
   `Ember.ControllerMixin` provides a standard interface for all classes that
@@ -14,6 +11,7 @@ import ControllerContentModelAliasDeprecation from "ember-runtime/mixins/control
   @class ControllerMixin
   @namespace Ember
   @uses Ember.ActionHandler
+  @private
 */
 export default Mixin.create(ActionHandler, ControllerContentModelAliasDeprecation, {
   /* ducktype as a controller */
@@ -36,6 +34,7 @@ export default Mixin.create(ActionHandler, ControllerContentModelAliasDeprecatio
 
     @property target
     @default null
+    @private
   */
   target: null,
 
@@ -45,20 +44,18 @@ export default Mixin.create(ActionHandler, ControllerContentModelAliasDeprecatio
 
   store: null,
 
+  /**
+    The controller's current model. When retrieving or modifying a controller's
+    model, this property should be used instead of the `content` property.
+
+    @property model
+    @public
+   */
   model: null,
-  content: computed.alias('model'),
 
-  deprecatedSendHandles: function(actionName) {
-    return !!this[actionName];
-  },
+  /**
+    @private
+  */
+  content: alias('model')
 
-  deprecatedSend: function(actionName) {
-    var args = [].slice.call(arguments, 1);
-    Ember.assert('' + this + " has the action " + actionName + " but it is not a function", typeof this[actionName] === 'function');
-    Ember.deprecate('Action handlers implemented directly on controllers are deprecated in favor of action handlers on an `actions` object ( action: `' + actionName + '` on ' + this + ')', false);
-    this[actionName].apply(this, args);
-    return;
-  }
 });
-
-

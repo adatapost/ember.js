@@ -1,25 +1,35 @@
-import Ember from "ember-metal/core";
-import Controller from "ember-runtime/controllers/controller";
-import ObjectController from "ember-runtime/controllers/object_controller";
-import Mixin from "ember-metal/mixin";
+/* global EmberDev */
+
+import Controller from 'ember-runtime/controllers/controller';
+import Service from 'ember-runtime/system/service';
+import ObjectController from 'ember-runtime/controllers/object_controller';
+import ArrayController, { arrayControllerDeprecation } from 'ember-runtime/controllers/array_controller';
+import {
+  objectControllerDeprecation
+} from 'ember-runtime/controllers/object_controller';
+import Mixin from 'ember-metal/mixin';
+import Object from 'ember-runtime/system/object';
+import { Registry } from 'ember-runtime/system/container';
+import inject from 'ember-runtime/inject';
+import { get } from 'ember-metal/property_get';
 
 QUnit.module('Controller event handling');
 
-test("Action can be handled by a function on actions object", function() {
+QUnit.test('Action can be handled by a function on actions object', function() {
   expect(1);
   var TestController = Controller.extend({
     actions: {
-      poke: function() {
+      poke() {
         ok(true, 'poked');
       }
     }
   });
   var controller = TestController.create({});
-  controller.send("poke");
+  controller.send('poke');
 });
 
 // TODO: Can we support this?
-// test("Actions handlers can be configured to use another name", function() {
+// QUnit.test("Actions handlers can be configured to use another name", function() {
 //   expect(1);
 //   var TestController = Controller.extend({
 //     actionsProperty: 'actionHandlers',
@@ -33,41 +43,43 @@ test("Action can be handled by a function on actions object", function() {
 //   controller.send("poke");
 // });
 
-test("When `_actions` is provided, `actions` is left alone", function() {
+QUnit.test('When `_actions` is provided, `actions` is left alone', function() {
   expect(2);
   var TestController = Controller.extend({
     actions: ['foo', 'bar'],
     _actions: {
-      poke: function() {
+      poke() {
         ok(true, 'poked');
       }
     }
   });
   var controller = TestController.create({});
-  controller.send("poke");
-  equal('foo', controller.get("actions")[0], 'actions property is not untouched');
+  controller.send('poke');
+  equal('foo', controller.get('actions')[0], 'actions property is not untouched');
 });
 
-test("Actions object doesn't shadow a proxied object's 'actions' property", function() {
+QUnit.test('Actions object doesn\'t shadow a proxied object\'s \'actions\' property', function() {
+  expectDeprecation(objectControllerDeprecation);
+
   var TestController = ObjectController.extend({
     model: {
       actions: 'foo'
     },
     actions: {
-      poke: function() {
+      poke() {
         console.log('ouch');
       }
     }
   });
   var controller = TestController.create({});
-  equal(controller.get("actions"), 'foo', "doesn't shadow the content's actions property");
+  equal(controller.get('actions'), 'foo', 'doesn\'t shadow the content\'s actions property');
 });
 
-test("A handled action can be bubbled to the target for continued processing", function() {
+QUnit.test('A handled action can be bubbled to the target for continued processing', function() {
   expect(2);
   var TestController = Controller.extend({
     actions: {
-      poke: function() {
+      poke() {
         ok(true, 'poked 1');
         return true;
       }
@@ -77,33 +89,33 @@ test("A handled action can be bubbled to the target for continued processing", f
   var controller = TestController.create({
     target: Controller.extend({
       actions: {
-        poke: function() {
+        poke() {
           ok(true, 'poked 2');
         }
       }
     }).create()
   });
-  controller.send("poke");
+  controller.send('poke');
 });
 
-test("Action can be handled by a superclass' actions object", function() {
+QUnit.test('Action can be handled by a superclass\' actions object', function() {
   expect(4);
 
   var SuperController = Controller.extend({
     actions: {
-      foo: function() {
+      foo() {
         ok(true, 'foo');
       },
-      bar: function(msg) {
-        equal(msg, "HELLO");
+      bar(msg) {
+        equal(msg, 'HELLO');
       }
     }
   });
 
   var BarControllerMixin = Mixin.create({
     actions: {
-      bar: function(msg) {
-        equal(msg, "HELLO");
+      bar(msg) {
+        equal(msg, 'HELLO');
         this._super(msg);
       }
     }
@@ -111,36 +123,23 @@ test("Action can be handled by a superclass' actions object", function() {
 
   var IndexController = SuperController.extend(BarControllerMixin, {
     actions: {
-      baz: function() {
+      baz() {
         ok(true, 'baz');
       }
     }
   });
 
   var controller = IndexController.create({});
-  controller.send("foo");
-  controller.send("bar", "HELLO");
-  controller.send("baz");
+  controller.send('foo');
+  controller.send('bar', 'HELLO');
+  controller.send('baz');
 });
 
 QUnit.module('Controller deprecations');
 
-if (!Ember.FEATURES.isEnabled('ember-routing-drop-deprecated-action-style')) {
-  test("Action can be handled by method directly on controller (DEPRECATED)", function() {
-    expectDeprecation(/Action handlers implemented directly on controllers are deprecated/);
-    var TestController = Controller.extend({
-      poke: function() {
-        ok(true, 'poked');
-      }
-    });
-    var controller = TestController.create({});
-    controller.send("poke");
-  });
-}
-
 QUnit.module('Controller Content -> Model Alias');
 
-test("`model` is aliased as `content`", function() {
+QUnit.test('`model` is aliased as `content`', function() {
   expect(1);
   var controller = Controller.extend({
     model: 'foo-bar'
@@ -149,7 +148,7 @@ test("`model` is aliased as `content`", function() {
   equal(controller.get('content'), 'foo-bar', 'content is an alias of model');
 });
 
-test("`content` is moved to `model` when `model` is unset", function() {
+QUnit.test('`content` is moved to `model` when `model` is unset', function() {
   expect(2);
   var controller;
 
@@ -163,7 +162,7 @@ test("`content` is moved to `model` when `model` is unset", function() {
   equal(controller.get('content'), 'foo-bar', 'content is set properly');
 });
 
-test("specifying `content` (without `model` specified) results in deprecation", function() {
+QUnit.test('specifying `content` (without `model` specified) results in deprecation', function() {
   expect(1);
   var controller;
 
@@ -174,12 +173,105 @@ test("specifying `content` (without `model` specified) results in deprecation", 
   }, 'Do not specify `content` on a Controller, use `model` instead.');
 });
 
-test("specifying `content` (with `model` specified) does not result in deprecation", function() {
-  expect(1);
+QUnit.test('specifying `content` (with `model` specified) does not result in deprecation', function() {
+  expect(3);
   expectNoDeprecation();
 
-  Controller.extend({
+  var controller = Controller.extend({
     content: 'foo-bar',
     model: 'blammo'
   }).create();
+
+  equal(get(controller, 'content'), 'foo-bar');
+  equal(get(controller, 'model'), 'blammo');
+});
+
+QUnit.module('Controller injected properties');
+
+if (!EmberDev.runningProdBuild) {
+  QUnit.test('defining a controller on a non-controller should fail assertion', function() {
+    expectAssertion(function() {
+      var registry = new Registry();
+      var container = registry.container();
+
+      var AnObject = Object.extend({
+        container: container,
+        foo: inject.controller('bar')
+      });
+
+      registry.register('foo:main', AnObject);
+
+      container.lookupFactory('foo:main');
+
+    }, /Defining an injected controller property on a non-controller is not allowed./);
+  });
+}
+
+QUnit.test('controllers can be injected into controllers', function() {
+  var registry = new Registry();
+  var container = registry.container();
+
+  registry.register('controller:post', Controller.extend({
+    postsController: inject.controller('posts')
+  }));
+
+  registry.register('controller:posts', Controller.extend());
+
+  var postController = container.lookup('controller:post');
+  var postsController = container.lookup('controller:posts');
+
+  equal(postsController, postController.get('postsController'), 'controller.posts is injected');
+});
+
+QUnit.test('controllers can be injected into ObjectControllers', function() {
+  var registry = new Registry();
+  var container = registry.container();
+
+  registry.register('controller:post', Controller.extend({
+    postsController: inject.controller('posts')
+  }));
+
+  registry.register('controller:posts', ObjectController.extend());
+
+  var postController = container.lookup('controller:post');
+  var postsController;
+  expectDeprecation(function() {
+    postsController = container.lookup('controller:posts');
+  }, objectControllerDeprecation);
+
+  equal(postsController, postController.get('postsController'), 'controller.posts is injected');
+});
+
+QUnit.test('controllers can be injected into ArrayControllers', function() {
+  expectDeprecation(arrayControllerDeprecation);
+  var registry = new Registry();
+  var container = registry.container();
+
+  registry.register('controller:post', Controller.extend({
+    postsController: inject.controller('posts')
+  }));
+
+  registry.register('controller:posts', ArrayController.extend());
+
+  var postController = container.lookup('controller:post');
+  var postsController = container.lookup('controller:posts');
+
+  equal(postsController, postController.get('postsController'), 'controller.posts is injected');
+});
+
+
+QUnit.test('services can be injected into controllers', function() {
+  var registry = new Registry();
+  var container = registry.container();
+
+  registry.register('controller:application', Controller.extend({
+    authService: inject.service('auth')
+  }));
+
+  registry.register('service:auth', Service.extend());
+
+  var appController = container.lookup('controller:application');
+  var authService = container.lookup('service:auth');
+
+  equal(authService, appController.get('authService'), 'service.auth is injected');
 });

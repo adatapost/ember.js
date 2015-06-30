@@ -11,10 +11,8 @@
 // ========================================================================
 // Ember.Observable Tests
 // ========================================================================
-/*globals module test ok isObj equals expects Namespace */
 
 import {get} from 'ember-metal/property_get';
-import {set} from 'ember-metal/property_set';
 import EmberObject from 'ember-runtime/system/object';
 import Observable from 'ember-runtime/mixins/observable';
 
@@ -24,22 +22,22 @@ var ObservableObject = EmberObject.extend(Observable);
 // GET()
 //
 
-QUnit.module("object.observesForKey()");
+QUnit.module('object.observesForKey()');
 
-test("should get observers", function() {
-  var o1 = ObservableObject.create({ foo: 100 }),
-      o2 = ObservableObject.create({ func: function() {} }),
-      o3 = ObservableObject.create({ func: function() {} }),
-      observers = null;
+QUnit.test('should get observers', function() {
+  var o1 = ObservableObject.create({ foo: 100 });
+  var o2 = ObservableObject.create({ func() {} });
+  var o3 = ObservableObject.create({ func() {} });
+  var observers = null;
 
-  equal(get(o1.observersForKey('foo'), 'length'), 0, "o1.observersForKey should return empty array");
+  equal(get(o1.observersForKey('foo'), 'length'), 0, 'o1.observersForKey should return empty array');
 
   o1.addObserver('foo', o2, o2.func);
   o1.addObserver('foo', o3, o3.func);
 
   observers = o1.observersForKey('foo');
 
-  equal(get(observers, 'length'), 2, "o2.observersForKey should return an array with length 2");
-  equal(observers[0][0], o2, "first item in observers array should be o2");
-  equal(observers[1][0], o3, "second item in observers array should be o3");
+  equal(get(observers, 'length'), 2, 'o2.observersForKey should return an array with length 2');
+  equal(observers[0][0], o2, 'first item in observers array should be o2');
+  equal(observers[1][0], o3, 'second item in observers array should be o3');
 });

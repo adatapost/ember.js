@@ -1,8 +1,12 @@
-import Ember from "ember-metal/core"; // Ember.K
-import {get} from "ember-metal/property_get";
-import {set} from "ember-metal/property_set";
-import run from "ember-metal/run_loop";
-import EmberError from "ember-metal/error";
+import EmberError from 'ember-metal/error';
+import { get } from 'ember-metal/property_get';
+
+import {
+  propertyWillChange,
+  propertyDidChange
+} from 'ember-metal/property_events';
+
+import { MUTABLE_CELL } from 'ember-views/compat/attrs-proxy';
 
 /**
 @module ember
@@ -10,36 +14,54 @@ import EmberError from "ember-metal/error";
 */
 export default {
   // appendChild is only legal while rendering the buffer.
-  appendChild: function() {
-    throw new EmberError("You can't use appendChild outside of the rendering process");
+  appendChild() {
+    throw new EmberError('You can\'t use appendChild outside of the rendering process');
   },
 
-  $: function() {
+  $() {
     return undefined;
   },
 
-  getElement: function() {
+  getElement() {
     return null;
   },
 
+  legacyAttrWillChange(view, key) {
+    if (key in view.attrs && !(key in view)) {
+      propertyWillChange(view, key);
+    }
+  },
+
+  legacyAttrDidChange(view, key) {
+    if (key in view.attrs && !(key in view)) {
+      propertyDidChange(view, key);
+    }
+  },
+
+  legacyPropertyDidChange(view, key) {
+    let attrs = view.attrs;
+
+    if (attrs && key in attrs) {
+      let possibleCell = attrs[key];
+
+      if (possibleCell && possibleCell[MUTABLE_CELL]) {
+        let value = get(view, key);
+        if (value === possibleCell.value) { return; }
+        possibleCell.update(value);
+      }
+    }
+  },
+
   // Handle events from `Ember.EventDispatcher`
-  handleEvent: function() {
+  handleEvent() {
     return true; // continue event propagation
   },
 
-  destroyElement: function(view) {
-    set(view, 'element', null);
-    if (view._scheduledInsert) {
-      run.cancel(view._scheduledInsert);
-      view._scheduledInsert = null;
-    }
-    return view;
-  },
+  cleanup() { } ,
+  destroyElement() { },
 
-  renderToBufferIfNeeded: function () {
-    return false;
+  rerender(view) {
+    view.renderer.ensureViewNotRendering(view);
   },
-
-  rerender: Ember.K,
-  invokeObserver: Ember.K
+  invokeObserver() { }
 };

@@ -1,5 +1,4 @@
-import { get } from "ember-metal/property_get";
-import { typeOf } from "ember-metal/utils";
+import { get } from 'ember-metal/property_get';
 
 /**
   To get multiple properties at once, call `Ember.getProperties`
@@ -18,20 +17,22 @@ import { typeOf } from "ember-metal/utils";
   ```
 
   @method getProperties
-  @param obj
+  @for Ember
+  @param {Object} obj
   @param {String...|Array} list of keys to get
-  @return {Hash}
+  @return {Object}
+  @private
 */
 export default function getProperties(obj) {
-  var ret = {},
-      propertyNames = arguments,
-      i = 1;
+  var ret = {};
+  var propertyNames = arguments;
+  var i = 1;
 
-  if (arguments.length === 2 && typeOf(arguments[1]) === 'array') {
+  if (arguments.length === 2 && Array.isArray(arguments[1])) {
     i = 0;
     propertyNames = arguments[1];
   }
-  for(var len = propertyNames.length; i < len; i++) {
+  for (var len = propertyNames.length; i < len; i++) {
     ret[propertyNames[i]] = get(obj, propertyNames[i]);
   }
   return ret;

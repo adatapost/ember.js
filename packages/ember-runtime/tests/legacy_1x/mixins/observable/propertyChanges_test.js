@@ -16,32 +16,23 @@
 // ========================================================================
 // Ember.Observable Tests
 // ========================================================================
-/*globals module test ok isObj equals expects */
 
-import {get} from 'ember-metal/property_get';
-import {set} from 'ember-metal/property_set';
 import EmberObject from 'ember-runtime/system/object';
 import Observable from 'ember-runtime/mixins/observable';
 import {computed} from 'ember-metal/computed';
-import {observer} from "ember-metal/mixin";
+import {observer} from 'ember-metal/mixin';
 
 var ObservableObject = EmberObject.extend(Observable);
 
-var revMatches = false , ObjectA;
+var revMatches = false;
+var ObjectA;
 
-QUnit.module("object.propertyChanges", {
-  setup: function() {
-    ObjectA = ObservableObject.createWithMixins({
-      foo  : 'fooValue',
-      prop : 'propValue',
-
+QUnit.module('object.propertyChanges', {
+  setup() {
+    ObjectA = ObservableObject.extend({
       action: observer('foo', function() {
         this.set('prop', 'changedPropValue');
       }),
-
-      newFoo : 'newFooValue',
-      newProp: 'newPropValue',
-
       notifyAction: observer('newFoo', function() {
         this.set('newProp', 'changedNewPropValue');
       }),
@@ -50,87 +41,95 @@ QUnit.module("object.propertyChanges", {
         this.set('newFoo', 'changedNewFooValue');
       }),
 
-      starProp: null,
-      starObserver: function(target, key, value, rev) {
-        revMatches = (rev === target.propertyRevision) ;
+      starObserver(target, key, value, rev) {
+        revMatches = (rev === target.propertyRevision);
         this.starProp = key;
       }
+    }).create({
+      starProp: null,
 
+      foo  : 'fooValue',
+      prop : 'propValue',
+
+      newFoo : 'newFooValue',
+      newProp: 'newPropValue'
     });
-    }
+  }
 });
 
-
-test("should observe the changes within the nested begin / end property changes", function() {
+QUnit.test('should observe the changes within the nested begin / end property changes', function() {
 
   //start the outer nest
   ObjectA.beginPropertyChanges();
-    // Inner nest
-    ObjectA.beginPropertyChanges();
-        ObjectA.set('foo', 'changeFooValue');
-      equal(ObjectA.prop, "propValue") ;
-      ObjectA.endPropertyChanges();
 
-    //end inner nest
-    ObjectA.set('prop', 'changePropValue');
-    equal(ObjectA.newFoo, "newFooValue") ;
+  // Inner nest
+  ObjectA.beginPropertyChanges();
+  ObjectA.set('foo', 'changeFooValue');
+
+  equal(ObjectA.prop, 'propValue');
+  ObjectA.endPropertyChanges();
+
+  //end inner nest
+  ObjectA.set('prop', 'changePropValue');
+  equal(ObjectA.newFoo, 'newFooValue');
+
   //close the outer nest
   ObjectA.endPropertyChanges();
 
-  equal(ObjectA.prop, "changedPropValue") ;
-  equal(ObjectA.newFoo, "changedNewFooValue") ;
-
+  equal(ObjectA.prop, 'changedPropValue');
+  equal(ObjectA.newFoo, 'changedNewFooValue');
 });
 
-test("should observe the changes within the begin and end property changes", function() {
+QUnit.test('should observe the changes within the begin and end property changes', function() {
 
   ObjectA.beginPropertyChanges();
-    ObjectA.set('foo', 'changeFooValue');
+  ObjectA.set('foo', 'changeFooValue');
 
-  equal(ObjectA.prop, "propValue") ;
-    ObjectA.endPropertyChanges();
+  equal(ObjectA.prop, 'propValue');
+  ObjectA.endPropertyChanges();
 
-  equal(ObjectA.prop, "changedPropValue") ;
+  equal(ObjectA.prop, 'changedPropValue');
 });
 
-test("should indicate that the property of an object has just changed", function() {
-  // inidicate that proprty of foo will change to its subscribers
-  ObjectA.propertyWillChange('foo') ;
+QUnit.test('should indicate that the property of an object has just changed', function() {
+  // indicate that property of foo will change to its subscribers
+  ObjectA.propertyWillChange('foo');
 
   //Value of the prop is unchanged yet as this will be changed when foo changes
-  equal(ObjectA.prop, 'propValue' ) ;
+  equal(ObjectA.prop, 'propValue');
 
   //change the value of foo.
   ObjectA.set('foo', 'changeFooValue');
 
   // Indicate the subscribers of foo that the value has just changed
-  ObjectA.propertyDidChange('foo', null) ;
+  ObjectA.propertyDidChange('foo', null);
 
   // Values of prop has just changed
-  equal(ObjectA.prop,'changedPropValue') ;
+  equal(ObjectA.prop, 'changedPropValue');
 });
 
-test("should notify that the property of an object has changed", function() {
+QUnit.test('should notify that the property of an object has changed', function() {
   // Notify to its subscriber that the values of 'newFoo' will be changed. In this
   // case the observer is "newProp". Therefore this will call the notifyAction function
   // and value of "newProp" will be changed.
-  ObjectA.notifyPropertyChange('newFoo','fooValue');
+  ObjectA.notifyPropertyChange('newFoo', 'fooValue');
 
   //value of newProp changed.
-  equal(ObjectA.newProp,'changedNewPropValue') ;
+  equal(ObjectA.newProp, 'changedNewPropValue');
 });
 
-test("should invalidate function property cache when notifyPropertyChange is called", function() {
+QUnit.test('should invalidate function property cache when notifyPropertyChange is called', function() {
 
-  var a = ObservableObject.createWithMixins({
-    _b: null,
-    b: computed(function(key, value) {
-      if (value !== undefined) {
+  var a = ObservableObject.extend({
+    b: computed({
+      get() { return this._b; },
+      set(key, value) {
         this._b = value;
         return this;
       }
-      return this._b;
     }).volatile()
+  }).create({
+    _b: null
   });
 
   a.set('b', 'foo');

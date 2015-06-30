@@ -1,9 +1,6 @@
 import { Mixin } from 'ember-metal/mixin';
-import TargetActionSupport from "ember-runtime/mixins/target_action_support";
-
-// ES6TODO: computed should have its own export path so you can do import {defaultTo} from computed
-import { computed } from "ember-metal/computed";
-var alias = computed.alias;
+import TargetActionSupport from 'ember-runtime/mixins/target_action_support';
+import alias from 'ember-metal/alias';
 
 /**
 `Ember.ViewTargetActionSupport` is a mixin that can be included in a
@@ -45,14 +42,17 @@ App.SaveButtonView = Ember.View.extend(Ember.ViewTargetActionSupport, {
 @class ViewTargetActionSupport
 @namespace Ember
 @extends Ember.TargetActionSupport
+@private
 */
 export default Mixin.create(TargetActionSupport, {
   /**
-  @property target
+   @property target
+   @private
   */
   target: alias('controller'),
   /**
-  @property actionContext
+   @property actionContext
+   @private
   */
   actionContext: alias('context')
 });

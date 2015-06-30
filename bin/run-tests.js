@@ -85,25 +85,23 @@ function generateEachPackageTests() {
 
 function generateBuiltTests() {
   // container isn't publicly available
-  // ember-testing is stripped from prod/min
+  // ember-testing/ember-debug are stripped from prod/min
+  var common = 'skipPackage=container,ember-testing,ember-debug';
   testFunctions.push(function() {
-    return run('skipPackage=container,ember-testing&nojshint=true');
+    return run(common + '&nojshint=true');
   });
   testFunctions.push(function() {
-    return run('skipPackage=container,ember-testing&dist=min&prod=true');
+    return run(common + '&dist=min&prod=true');
   });
   testFunctions.push(function() {
-    return run('skipPackage=container,ember-testing&dist=prod&prod=true');
+    return run(common + '&dist=prod&prod=true');
+  });
+  testFunctions.push(function() {
+    return run(common + '&enableoptionalfeatures=true&dist=prod&prod=true');
   });
 }
 
 function generateOldJQueryTests() {
-  testFunctions.push(function() {
-    return run('jquery=1.7.2&nojshint=true');
-  });
-  testFunctions.push(function() {
-    return run('jquery=1.7.2&nojshint=true&enableoptionalfeatures=true');
-  });
   testFunctions.push(function() {
     return run('jquery=1.8.3&nojshint=true');
   });
@@ -137,6 +135,12 @@ switch (process.env.TEST_SUITE) {
     generateExtendPrototypeTests();
     generateEachPackageTests();
     break;
+  case 'node':
+    require('./run-node-tests');
+    return;
+  case 'sauce':
+    require('./run-sauce-tests');
+    return;
   default:
     generateEachPackageTests();
 }

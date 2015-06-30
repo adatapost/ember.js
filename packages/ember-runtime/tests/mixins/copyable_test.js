@@ -9,12 +9,12 @@ var CopyableObject = EmberObject.extend(Copyable, {
 
   id: null,
 
-  init: function() {
-    this._super();
+  init() {
+    this._super.apply(this, arguments);
     set(this, 'id', generateGuid());
   },
 
-  copy: function() {
+  copy() {
     var ret = new CopyableObject();
     set(ret, 'id', get(this, 'id'));
     return ret;
@@ -25,12 +25,15 @@ CopyableTests.extend({
 
   name: 'Copyable Basic Test',
 
-  newObject: function() {
+  newObject() {
     return new CopyableObject();
   },
 
-  isEqual: function(a, b) {
-    if (!(a instanceof CopyableObject) || !(b instanceof CopyableObject)) return false;
-    return get(a, 'id') === get(b,'id');
+  isEqual(a, b) {
+    if (!(a instanceof CopyableObject) || !(b instanceof CopyableObject)) {
+      return false;
+    }
+
+    return get(a, 'id') === get(b, 'id');
   }
 }).run();

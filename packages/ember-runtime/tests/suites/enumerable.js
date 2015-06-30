@@ -1,9 +1,9 @@
-import {Suite, SuiteModuleBuilder} from 'ember-runtime/tests/suites/suite';
-import EmberObject from "ember-runtime/system/object";
-import {required} from "ember-metal/mixin";
-import {guidFor, generateGuid} from "ember-metal/utils";
-import {computed} from "ember-metal/computed";
-import {get} from "ember-metal/property_get";
+import { Suite } from 'ember-runtime/tests/suites/suite';
+import EmberObject from 'ember-runtime/system/object';
+import {guidFor, generateGuid} from 'ember-metal/utils';
+import {computed} from 'ember-metal/computed';
+import {get} from 'ember-metal/property_get';
+import { addBeforeObserver } from 'ember-metal/observer';
 
 var ObserverClass = EmberObject.extend({
 
@@ -15,33 +15,33 @@ var ObserverClass = EmberObject.extend({
 
   isEnabled: true,
 
-  init: function() {
-    this._super();
+  init() {
+    this._super.apply(this, arguments);
     this.reset();
   },
 
 
-  propertyWillChange: function(target, key) {
+  propertyWillChange(target, key) {
     if (this._keysBefore[key] === undefined) { this._keysBefore[key] = 0; }
     this._keysBefore[key]++;
   },
 
-  /**
+  /*
     Invoked when the property changes.  Just records the parameters for
     later analysis.
   */
-  propertyDidChange: function(target, key, value) {
+  propertyDidChange(target, key, value) {
     if (this._keys[key] === undefined) { this._keys[key] = 0; }
     this._keys[key]++;
     this._values[key] = value;
   },
 
-  /**
+  /*
     Resets the recorded results for another run.
 
     @returns {Object} receiver
   */
-  reset: function() {
+  reset() {
     this._keysBefore = {};
     this._keys = {};
     this._values = {};
@@ -51,16 +51,17 @@ var ObserverClass = EmberObject.extend({
   },
 
 
-  observeBefore: function(obj) {
-    if (obj.addBeforeObserver) {
-      var keys = Array.prototype.slice.call(arguments, 1),
-          loc  = keys.length;
-      while(--loc>=0) obj.addBeforeObserver(keys[loc], this, 'propertyWillChange');
+  observeBefore(obj) {
+    var keys = Array.prototype.slice.call(arguments, 1);
+    var loc  = keys.length;
+    while (--loc>=0) {
+      addBeforeObserver(obj, keys[loc], this, 'propertyWillChange');
     }
+
     return this;
   },
 
-  /**
+  /*
     Begins observing the passed key names on the passed object.  Any changes
     on the named properties will be recorded.
 
@@ -69,18 +70,21 @@ var ObserverClass = EmberObject.extend({
 
     @returns {Object} receiver
   */
-  observe: function(obj) {
+  observe(obj) {
     if (obj.addObserver) {
-      var keys = Array.prototype.slice.call(arguments, 1),
-          loc  = keys.length;
-      while(--loc>=0) obj.addObserver(keys[loc], this, 'propertyDidChange');
+      var keys = Array.prototype.slice.call(arguments, 1);
+      var loc  = keys.length;
+
+      while (--loc >= 0) {
+        obj.addObserver(keys[loc], this, 'propertyDidChange');
+      }
     } else {
       this.isEnabled = false;
     }
     return this;
   },
 
-  /**
+  /*
     Returns true if the passed key was invoked.  If you pass a value as
     well then validates that the values match.
 
@@ -92,52 +96,61 @@ var ObserverClass = EmberObject.extend({
 
     @returns {Boolean}
   */
-  validate: function(key, value) {
-    if (!this.isEnabled) return true;
-    if (!this._keys[key]) return false;
-    if (arguments.length>1) return this._values[key] === value;
-    else return true;
+  validate(key, value) {
+    if (!this.isEnabled) {
+      return true;
+    }
+
+    if (!this._keys[key]) {
+      return false;
+    }
+
+    if (arguments.length>1) {
+      return this._values[key] === value;
+    } else {
+      return true;
+    }
   },
 
-  /**
+  /*
     Returns times the before observer as invoked.
 
     @param {String} key
       Key to check
   */
-  timesCalledBefore: function(key) {
+  timesCalledBefore(key) {
     return this._keysBefore[key] || 0;
   },
 
-  /**
+  /*
     Returns times the observer as invoked.
 
     @param {String} key
       Key to check
   */
-  timesCalled: function(key) {
+  timesCalled(key) {
     return this._keys[key] || 0;
   },
 
-  /**
+  /*
     begins acting as an enumerable observer.
   */
-  observeEnumerable: function(obj) {
+  observeEnumerable(obj) {
     obj.addEnumerableObserver(this);
     return this;
   },
 
-  stopObserveEnumerable: function(obj) {
+  stopObserveEnumerable(obj) {
     obj.removeEnumerableObserver(this);
     return this;
   },
 
-  enumerableWillChange: function() {
+  enumerableWillChange() {
     equal(this._before, null, 'should only call once');
     this._before = Array.prototype.slice.call(arguments);
   },
 
-  enumerableDidChange: function() {
+  enumerableDidChange() {
     equal(this._after, null, 'should only call once');
     this._after = Array.prototype.slice.call(arguments);
   }
@@ -146,7 +159,9 @@ var ObserverClass = EmberObject.extend({
 
 
 var EnumerableTests = Suite.extend({
-  /**
+  /*
+    __Required.__ You must implement this method to apply this mixin.
+
     Implement to return a new enumerable object for testing.  Should accept
     either no parameters, a single number (indicating the desired length of
     the collection) or an array of objects.
@@ -156,9 +171,9 @@ var EnumerableTests = Suite.extend({
 
     @returns {Ember.Enumerable} a new enumerable
   */
-  newObject: required(Function),
+  newObject: null,
 
-  /**
+  /*
     Implement to return a set of new fixture strings that can be applied to
     the enumerable.  This may be passed into the newObject method.
 
@@ -167,13 +182,16 @@ var EnumerableTests = Suite.extend({
 
     @returns {Array} array of strings
   */
-  newFixture: function(cnt) {
+  newFixture(cnt) {
     var ret = [];
-    while(--cnt >= 0) ret.push(generateGuid());
+    while (--cnt >= 0) {
+      ret.push(generateGuid());
+    }
+
     return ret;
   },
 
-  /**
+  /*
     Implement to return a set of new fixture objects that can be applied to
     the enumerable.  This may be passed into the newObject method.
 
@@ -182,10 +200,10 @@ var EnumerableTests = Suite.extend({
 
     @returns {Array} array of objects
   */
-  newObjectsFixture: function(cnt) {
+  newObjectsFixture(cnt) {
     var ret = [];
     var item;
-    while(--cnt >= 0) {
+    while (--cnt >= 0) {
       item = {};
       guidFor(item);
       ret.push(item);
@@ -193,7 +211,9 @@ var EnumerableTests = Suite.extend({
     return ret;
   },
 
-  /**
+  /*
+    __Required.__ You must implement this method to apply this mixin.
+
     Implement accept an instance of the enumerable and return an array
     containing the objects in the enumerable.  This is used only for testing
     so performance is not important.
@@ -203,9 +223,9 @@ var EnumerableTests = Suite.extend({
 
     @returns {Array} array of items
   */
-  toArray: required(Function),
+  toArray: null,
 
-  /**
+  /*
     Implement this method if your object can mutate internally (even if it
     does not support the MutableEnumerable API).  The method should accept
     an object of your desired type and modify it somehow.  Suite tests will
@@ -220,9 +240,9 @@ var EnumerableTests = Suite.extend({
 
     @returns {void}
   */
-  mutate: function() {},
+  mutate() {},
 
-  /**
+  /*
     Becomes true when you define a new mutate() method, indicating that
     mutation tests should run.  This is calculated automatically.
 
@@ -232,22 +252,28 @@ var EnumerableTests = Suite.extend({
     return this.mutate !== EnumerableTests.prototype.mutate;
   }),
 
-  /**
+  /*
     Invoked to actually run the test - overridden by mixins
   */
-  run: function() {},
+  run() {},
 
 
-  /**
+  /*
     Creates a new observer object for testing.  You can add this object as an
     observer on an array and it will record results anytime it is invoked.
     After running the test, call the validate() method on the observer to
     validate the results.
   */
-  newObserver: function(obj) {
+  newObserver(obj) {
     var ret = get(this, 'observerClass').create();
-    if (arguments.length>0) ret.observeBefore.apply(ret, arguments);
-    if (arguments.length>0) ret.observe.apply(ret, arguments);
+    if (arguments.length>0) {
+      ret.observeBefore.apply(ret, arguments);
+    }
+
+    if (arguments.length>0) {
+      ret.observe.apply(ret, arguments);
+    }
+
     return ret;
   },
 

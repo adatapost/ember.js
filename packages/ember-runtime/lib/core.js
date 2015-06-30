@@ -20,8 +20,9 @@
   @param {Object} a first object to compare
   @param {Object} b second object to compare
   @return {Boolean}
+  @public
 */
-export var isEqual = function isEqual(a, b) {
+export function isEqual(a, b) {
   if (a && typeof a.isEqual === 'function') {
     return a.isEqual(b);
   }
@@ -31,4 +32,4 @@ export var isEqual = function isEqual(a, b) {
   }
 
   return a === b;
-};
+}

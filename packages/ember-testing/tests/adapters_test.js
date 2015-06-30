@@ -1,16 +1,16 @@
-import run from "ember-metal/run_loop";
-import Test from "ember-testing/test";
-import Adapter from "ember-testing/adapters/adapter";
-import QUnitAdapter from "ember-testing/adapters/qunit";
-import EmberApplication from "ember-application/system/application";
+import run from 'ember-metal/run_loop';
+import Test from 'ember-testing/test';
+import Adapter from 'ember-testing/adapters/adapter';
+import QUnitAdapter from 'ember-testing/adapters/qunit';
+import EmberApplication from 'ember-application/system/application';
 
 var App, originalAdapter;
 
-QUnit.module("ember-testing Adapters", {
-  setup: function() {
+QUnit.module('ember-testing Adapters', {
+  setup() {
     originalAdapter = Test.adapter;
   },
-  teardown: function() {
+  teardown() {
     run(App, App.destroy);
     App.removeTestHelpers();
     App = null;
@@ -19,13 +19,13 @@ QUnit.module("ember-testing Adapters", {
   }
 });
 
-test("Setting a test adapter manually", function() {
+QUnit.test('Setting a test adapter manually', function() {
   expect(1);
   var CustomAdapter;
 
   CustomAdapter = Adapter.extend({
-    asyncStart: function() {
-      ok(true, "Correct adapter was used");
+    asyncStart() {
+      ok(true, 'Correct adapter was used');
     }
   });
 
@@ -38,7 +38,7 @@ test("Setting a test adapter manually", function() {
   Test.adapter.asyncStart();
 });
 
-test("QUnitAdapter is used by default", function() {
+QUnit.test('QUnitAdapter is used by default', function() {
   expect(1);
 
   Test.adapter = null;

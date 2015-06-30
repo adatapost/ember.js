@@ -1,24 +1,22 @@
-
 /**
 @module ember
 @submodule ember-views
 */
 
-import Ember from "ember-metal/core"; // Ember.assert
-import { create } from "ember-metal/platform";
-import { isGlobalPath } from "ember-metal/binding";
-import merge from "ember-metal/merge";
-import { get } from "ember-metal/property_get";
-import { set } from "ember-metal/property_set";
-import { fmt } from "ember-runtime/system/string";
-import ContainerView from "ember-views/views/container_view";
-import CoreView from "ember-views/views/core_view";
-import View from "ember-views/views/view";
+import Ember from 'ember-metal/core'; // Ember.assert
+import ContainerView from 'ember-views/views/container_view';
+import View from 'ember-views/views/view';
+import EmberArray from 'ember-runtime/mixins/array';
+import { get } from 'ember-metal/property_get';
+import { set } from 'ember-metal/property_set';
+import { fmt } from 'ember-runtime/system/string';
+import { computed } from 'ember-metal/computed';
 import {
   observer,
   beforeObserver
-} from "ember-metal/mixin";
-import EmberArray from "ember-runtime/mixins/array";
+} from 'ember-metal/mixin';
+import { readViewFactory } from 'ember-views/streams/utils';
+import EmptyViewSupport from 'ember-views/mixins/empty_view_support';
 
 /**
   `Ember.CollectionView` is an `Ember.View` descendent responsible for managing
@@ -41,27 +39,32 @@ import EmberArray from "ember-runtime/mixins/array";
   The view for each item in the collection will have its `content` property set
   to the item.
 
-  ## Specifying itemViewClass
+  ## Specifying `itemViewClass`
 
   By default the view class for each item in the managed collection will be an
   instance of `Ember.View`. You can supply a different class by setting the
   `CollectionView`'s `itemViewClass` property.
 
-  Given an empty `<body>` and the following code:
+  Given the following application code:
 
   ```javascript
-  someItemsView = Ember.CollectionView.create({
+  var App = Ember.Application.create();
+  App.ItemListView = Ember.CollectionView.extend({
     classNames: ['a-collection'],
     content: ['A','B','C'],
     itemViewClass: Ember.View.extend({
       template: Ember.Handlebars.compile("the letter: {{view.content}}")
     })
   });
-
-  someItemsView.appendTo('body');
   ```
 
-  Will result in the following HTML structure
+  And a simple application template:
+
+  ```handlebars
+  {{view 'item-list'}}
+  ```
+
+  The following HTML will result:
 
   ```html
   <div class="ember-view a-collection">
@@ -77,21 +80,26 @@ import EmberArray from "ember-runtime/mixins/array";
   "ul", "ol", "table", "thead", "tbody", "tfoot", "tr", or "select" will result
   in the item views receiving an appropriately matched `tagName` property.
 
-  Given an empty `<body>` and the following code:
+  Given the following application code:
 
   ```javascript
-  anUnorderedListView = Ember.CollectionView.create({
+  var App = Ember.Application.create();
+  App.UnorderedListView = Ember.CollectionView.create({
     tagName: 'ul',
     content: ['A','B','C'],
     itemViewClass: Ember.View.extend({
       template: Ember.Handlebars.compile("the letter: {{view.content}}")
     })
   });
-
-  anUnorderedListView.appendTo('body');
   ```
 
-  Will result in the following HTML structure
+  And a simple application template:
+
+  ```handlebars
+  {{view 'unordered-list-view'}}
+  ```
+
+  The following HTML will result:
 
   ```html
   <ul class="ember-view a-collection">
@@ -102,7 +110,7 @@ import EmberArray from "ember-runtime/mixins/array";
   ```
 
   Additional `tagName` pairs can be provided by adding to
-  `Ember.CollectionView.CONTAINER_MAP `
+  `Ember.CollectionView.CONTAINER_MAP`. For example:
 
   ```javascript
   Ember.CollectionView.CONTAINER_MAP['article'] = 'section'
@@ -112,10 +120,10 @@ import EmberArray from "ember-runtime/mixins/array";
 
   For cases where additional customization beyond the use of a single
   `itemViewClass` or `tagName` matching is required CollectionView's
-  `createChildView` method can be overidden:
+  `createChildView` method can be overridden:
 
   ```javascript
-  CustomCollectionView = Ember.CollectionView.extend({
+  App.CustomCollectionView = Ember.CollectionView.extend({
     createChildView: function(viewClass, attrs) {
       if (attrs.content.kind == 'album') {
         viewClass = App.AlbumView;
@@ -135,18 +143,23 @@ import EmberArray from "ember-runtime/mixins/array";
   will be the `CollectionView`s only child.
 
   ```javascript
-  aListWithNothing = Ember.CollectionView.create({
-    classNames: ['nothing']
+  var App = Ember.Application.create();
+  App.ListWithNothing = Ember.CollectionView.create({
+    classNames: ['nothing'],
     content: null,
     emptyView: Ember.View.extend({
       template: Ember.Handlebars.compile("The collection is empty")
     })
   });
-
-  aListWithNothing.appendTo('body');
   ```
 
-  Will result in the following HTML structure
+  And a simple application template:
+
+  ```handlebars
+  {{view 'list-with-nothing'}}
+  ```
+
+  The following HTML will result:
 
   ```html
   <div class="ember-view nothing">
@@ -166,9 +179,11 @@ import EmberArray from "ember-runtime/mixins/array";
   @class CollectionView
   @namespace Ember
   @extends Ember.ContainerView
+  @uses Ember.EmptyViewSupport
   @since Ember 0.9
+  @private
 */
-var CollectionView = ContainerView.extend({
+var CollectionView = ContainerView.extend(EmptyViewSupport, {
 
   /**
     A list of items to be displayed by the `Ember.CollectionView`.
@@ -176,32 +191,15 @@ var CollectionView = ContainerView.extend({
     @property content
     @type Ember.Array
     @default null
+    @private
   */
   content: null,
-
-  /**
-    This provides metadata about what kind of empty view class this
-    collection would like if it is being instantiated from another
-    system (like Handlebars)
-
-    @private
-    @property emptyViewClass
-  */
-  emptyViewClass: View,
-
-  /**
-    An optional view to display if content is set to an empty array.
-
-    @property emptyView
-    @type Ember.View
-    @default null
-  */
-  emptyView: null,
 
   /**
     @property itemViewClass
     @type Ember.View
     @default Ember.View
+    @private
   */
   itemViewClass: View,
 
@@ -209,9 +207,10 @@ var CollectionView = ContainerView.extend({
     Setup a CollectionView
 
     @method init
+    @private
   */
-  init: function() {
-    var ret = this._super();
+  init() {
+    var ret = this._super(...arguments);
     this._contentDidChange();
     return ret;
   },
@@ -258,17 +257,18 @@ var CollectionView = ContainerView.extend({
     @private
     @method _assertArrayLike
   */
-  _assertArrayLike: function(content) {
-    Ember.assert(fmt("an Ember.CollectionView's content must implement Ember.Array. You passed %@", [content]), EmberArray.detect(content));
+  _assertArrayLike(content) {
+    Ember.assert(fmt('an Ember.CollectionView\'s content must implement Ember.Array. You passed %@', [content]), EmberArray.detect(content));
   },
 
   /**
     Removes the content and content observers.
 
     @method destroy
+    @private
   */
-  destroy: function() {
-    if (!this._super()) { return; }
+  destroy() {
+    if (!this._super(...arguments)) { return; }
 
     var content = get(this, 'content');
     if (content) { content.removeArrayObserver(this); }
@@ -290,37 +290,12 @@ var CollectionView = ContainerView.extend({
 
     @method arrayWillChange
     @param {Array} content the managed collection of objects
-    @param {Number} start the index at which the changes will occurr
+    @param {Number} start the index at which the changes will occur
     @param {Number} removed number of object to be removed from content
+    @private
   */
-  arrayWillChange: function(content, start, removedCount) {
-    // If the contents were empty before and this template collection has an
-    // empty view remove it now.
-    var emptyView = get(this, 'emptyView');
-    if (emptyView && emptyView instanceof View) {
-      emptyView.removeFromParent();
-    }
-
-    // Loop through child views that correspond with the removed items.
-    // Note that we loop from the end of the array to the beginning because
-    // we are mutating it as we go.
-    var childViews = this._childViews, childView, idx, len;
-
-    len = this._childViews.length;
-
-    var removingAll = removedCount === len;
-
-    if (removingAll) {
-      this.currentState.empty(this);
-      this.invokeRecursively(function(view) {
-        view.removedFromDOM = true;
-      }, false);
-    }
-
-    for (idx = start + removedCount - 1; idx >= start; idx--) {
-      childView = childViews[idx];
-      childView.destroy();
-    }
+  arrayWillChange(content, start, removedCount) {
+    this.replace(start, removedCount, []);
   },
 
   /**
@@ -336,53 +311,33 @@ var CollectionView = ContainerView.extend({
     @param {Number} start the index at which the changes occurred
     @param {Number} removed number of object removed from content
     @param {Number} added number of object added to content
+    @private
   */
-  arrayDidChange: function(content, start, removed, added) {
-    var addedViews = [], view, item, idx, len, itemViewClass,
-      emptyView;
+  arrayDidChange(content, start, removed, added) {
+    var addedViews = [];
+    var view, item, idx, len, itemViewClass, itemViewProps;
 
     len = content ? get(content, 'length') : 0;
 
     if (len) {
-      itemViewClass = get(this, 'itemViewClass');
+      itemViewProps = this._itemViewProps || {};
+      itemViewClass = this.getAttr('itemViewClass') || get(this, 'itemViewClass');
 
-      if ('string' === typeof itemViewClass && isGlobalPath(itemViewClass)) {
-        itemViewClass = get(itemViewClass) || itemViewClass;
-      }
-
-      Ember.assert(fmt("itemViewClass must be a subclass of Ember.View, not %@",
-                       [itemViewClass]),
-                       'string' === typeof itemViewClass || View.detect(itemViewClass));
+      itemViewClass = readViewFactory(itemViewClass, this.container);
 
       for (idx = start; idx < start+added; idx++) {
         item = content.objectAt(idx);
+        itemViewProps._context = this.keyword ? this.get('context') : item;
+        itemViewProps.content = item;
+        itemViewProps.contentIndex = idx;
 
-        view = this.createChildView(itemViewClass, {
-          content: item,
-          contentIndex: idx
-        });
+        view = this.createChildView(itemViewClass, itemViewProps);
 
         addedViews.push(view);
       }
-    } else {
-      emptyView = get(this, 'emptyView');
 
-      if (!emptyView) { return; }
-
-      if ('string' === typeof emptyView && isGlobalPath(emptyView)) {
-        emptyView = get(emptyView) || emptyView;
-      }
-
-      emptyView = this.createChildView(emptyView);
-      addedViews.push(emptyView);
-      set(this, 'emptyView', emptyView);
-
-      if (CoreView.detect(emptyView)) {
-        this._createdEmptyView = emptyView;
-      }
+      this.replace(start, 0, addedViews);
     }
-
-    this.replace(start, 0, addedViews);
   },
 
   /**
@@ -397,11 +352,12 @@ var CollectionView = ContainerView.extend({
 
     @method createChildView
     @param {Class} viewClass
-    @param {Hash} [attrs] Attributes to add
+    @param {Object} [attrs] Attributes to add
     @return {Ember.View} new instance
+    @private
   */
-  createChildView: function(view, attrs) {
-    view = this._super(view, attrs);
+  createChildView(_view, attrs) {
+    var view = this._super(_view, attrs);
 
     var itemTagName = get(view, 'tagName');
 
@@ -411,7 +367,31 @@ var CollectionView = ContainerView.extend({
     }
 
     return view;
-  }
+  },
+
+  _willRender: function() {
+    var attrs = this.attrs;
+    var itemProps = buildItemViewProps(this._itemViewTemplate, attrs);
+    this._itemViewProps = itemProps;
+    var childViews = get(this, 'childViews');
+
+    for (var i=0, l=childViews.length; i<l; i++) {
+      childViews[i].setProperties(itemProps);
+    }
+
+    if ('content' in attrs) {
+      set(this, 'content', this.getAttr('content'));
+    }
+
+    if ('emptyView' in attrs) {
+      set(this, 'emptyView', this.getAttr('emptyView'));
+    }
+  },
+
+  _emptyViewTagName: computed('tagName', function() {
+    var tagName = get(this, 'tagName');
+    return CollectionView.CONTAINER_MAP[tagName] || 'div';
+  })
 });
 
 /**
@@ -420,9 +400,10 @@ var CollectionView = ContainerView.extend({
   a particular parent tag to default to a child tag.
 
   @property CONTAINER_MAP
-  @type Hash
+  @type Object
   @static
   @final
+  @private
 */
 CollectionView.CONTAINER_MAP = {
   ul: 'li',
@@ -434,5 +415,39 @@ CollectionView.CONTAINER_MAP = {
   tr: 'td',
   select: 'option'
 };
+
+export let CONTAINER_MAP = CollectionView.CONTAINER_MAP;
+
+function buildItemViewProps(template, attrs) {
+  var props = {};
+
+  // Go through options passed to the {{collection}} helper and extract options
+  // that configure item views instead of the collection itself.
+  for (var prop in attrs) {
+    if (prop === 'itemViewClass' || prop === 'itemController' || prop === 'itemClassBinding') {
+      continue;
+    }
+    if (attrs.hasOwnProperty(prop)) {
+      var match = prop.match(/^item(.)(.*)$/);
+      if (match) {
+        var childProp = match[1].toLowerCase() + match[2];
+
+        if (childProp === 'class' || childProp === 'classNames') {
+          props.classNames = [attrs[prop]];
+        } else {
+          props[childProp] = attrs[prop];
+        }
+
+        delete attrs[prop];
+      }
+    }
+  }
+
+  if (template) {
+    props.template = template;
+  }
+
+  return props;
+}
 
 export default CollectionView;

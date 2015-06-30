@@ -2,35 +2,32 @@
 @module ember
 @submodule ember-runtime
 */
-import Ember from "ember-metal/core"; // Ember.assert
+import Ember from 'ember-metal/core'; // Ember.assert
 
 import {
   get,
   getWithDefault
-} from "ember-metal/property_get";
-import { set } from "ember-metal/property_set";
-import { apply } from "ember-metal/utils";
-import getProperties from "ember-metal/get_properties";
-import setProperties from "ember-metal/set_properties";
-import { Mixin } from "ember-metal/mixin";
-import { hasListeners } from "ember-metal/events";
+} from 'ember-metal/property_get';
+import { set } from 'ember-metal/property_set';
+import getProperties from 'ember-metal/get_properties';
+import setProperties from 'ember-metal/set_properties';
+import { Mixin } from 'ember-metal/mixin';
+import { hasListeners } from 'ember-metal/events';
 import {
   beginPropertyChanges,
   propertyWillChange,
   propertyDidChange,
   endPropertyChanges
-} from "ember-metal/property_events";
+} from 'ember-metal/property_events';
 import {
   addObserver,
   addBeforeObserver,
   removeObserver,
   observersFor
-} from "ember-metal/observer";
-import { cacheFor } from "ember-metal/computed";
-import { isNone } from "ember-metal/is_none";
+} from 'ember-metal/observer';
+import { cacheFor } from 'ember-metal/computed';
+import isNone from 'ember-metal/is_none';
 
-
-var slice = Array.prototype.slice;
 /**
   ## Overview
 
@@ -95,6 +92,7 @@ var slice = Array.prototype.slice;
 
   @class Observable
   @namespace Ember
+  @public
 */
 export default Mixin.create({
 
@@ -135,13 +133,14 @@ export default Mixin.create({
     @method get
     @param {String} keyName The property to retrieve
     @return {Object} The property value or undefined.
+    @public
   */
-  get: function(keyName) {
+  get(keyName) {
     return get(this, keyName);
   },
 
   /**
-    To get multiple properties at once, call `getProperties`
+    To get the values of multiple properties at once, call `getProperties`
     with a list of strings or an array:
 
     ```javascript
@@ -158,10 +157,11 @@ export default Mixin.create({
 
     @method getProperties
     @param {String...|Array} list of keys to get
-    @return {Hash}
+    @return {Object}
+    @public
   */
-  getProperties: function() {
-    return apply(null, getProperties, [this].concat(slice.call(arguments)));
+  getProperties(...args) {
+    return getProperties.apply(null, [this].concat(args));
   },
 
   /**
@@ -198,23 +198,14 @@ export default Mixin.create({
     another object) will be placed in a queue and called at a later time in a
     coalesced manner.
 
-    ### Chaining
-
-    In addition to property changes, `set()` returns the value of the object
-    itself so you can do chaining like this:
-
-    ```javascript
-    record.set('firstName', 'Charles').set('lastName', 'Jolley');
-    ```
-
     @method set
     @param {String} keyName The property to set
     @param {Object} value The value to set or `null`.
-    @return {Ember.Observable}
+    @return {Object} The passed value
+    @public
   */
-  set: function(keyName, value) {
-    set(this, keyName, value);
-    return this;
+  set(keyName, value) {
+    return set(this, keyName, value);
   },
 
 
@@ -228,10 +219,11 @@ export default Mixin.create({
     ```
 
     @method setProperties
-    @param {Hash} hash the hash of keys and values to set
-    @return {Ember.Observable}
+    @param {Object} hash the hash of keys and values to set
+    @return {Object} The passed in hash
+    @public
   */
-  setProperties: function(hash) {
+  setProperties(hash) {
     return setProperties(this, hash);
   },
 
@@ -248,8 +240,9 @@ export default Mixin.create({
 
     @method beginPropertyChanges
     @return {Ember.Observable}
+    @private
   */
-  beginPropertyChanges: function() {
+  beginPropertyChanges() {
     beginPropertyChanges();
     return this;
   },
@@ -266,8 +259,9 @@ export default Mixin.create({
 
     @method endPropertyChanges
     @return {Ember.Observable}
+    @private
   */
-  endPropertyChanges: function() {
+  endPropertyChanges() {
     endPropertyChanges();
     return this;
   },
@@ -289,8 +283,9 @@ export default Mixin.create({
     @method propertyWillChange
     @param {String} keyName The property key that is about to change.
     @return {Ember.Observable}
+    @private
   */
-  propertyWillChange: function(keyName) {
+  propertyWillChange(keyName) {
     propertyWillChange(this, keyName);
     return this;
   },
@@ -312,8 +307,9 @@ export default Mixin.create({
     @method propertyDidChange
     @param {String} keyName The property key that has just changed.
     @return {Ember.Observable}
+    @private
   */
-  propertyDidChange: function(keyName) {
+  propertyDidChange(keyName) {
     propertyDidChange(this, keyName);
     return this;
   },
@@ -325,14 +321,16 @@ export default Mixin.create({
     @method notifyPropertyChange
     @param {String} keyName The property key to be notified about.
     @return {Ember.Observable}
+    @private
   */
-  notifyPropertyChange: function(keyName) {
+  notifyPropertyChange(keyName) {
     this.propertyWillChange(keyName);
     this.propertyDidChange(keyName);
     return this;
   },
 
-  addBeforeObserver: function(key, target, method) {
+  addBeforeObserver(key, target, method) {
+    Ember.deprecate('Before observers are deprecated and will be removed in a future release. If you want to keep track of previous values you have to implement it yourself.', false, { url: 'http://emberjs.com/guides/deprecations/#toc_deprecate-beforeobservers' });
     addBeforeObserver(this, key, target, method);
   },
 
@@ -382,8 +380,9 @@ export default Mixin.create({
     @param {String} key The key to observer
     @param {Object} target The target object to invoke
     @param {String|Function} method The method to invoke.
+    @public
   */
-  addObserver: function(key, target, method) {
+  addObserver(key, target, method) {
     addObserver(this, key, target, method);
   },
 
@@ -396,8 +395,9 @@ export default Mixin.create({
     @param {String} key The key to observer
     @param {Object} target The target object to invoke
     @param {String|Function} method The method to invoke.
+    @public
   */
-  removeObserver: function(key, target, method) {
+  removeObserver(key, target, method) {
     removeObserver(this, key, target, method);
   },
 
@@ -410,8 +410,9 @@ export default Mixin.create({
     @method hasObserverFor
     @param {String} key Key to check
     @return {Boolean}
+    @private
   */
-  hasObserverFor: function(key) {
+  hasObserverFor(key) {
     return hasListeners(this, key+':change');
   },
 
@@ -427,8 +428,9 @@ export default Mixin.create({
     @param {String} keyName The name of the property to retrieve
     @param {Object} defaultValue The value to return if the property value is undefined
     @return {Object} The property value or the defaultValue.
+    @public
   */
-  getWithDefault: function(keyName, defaultValue) {
+  getWithDefault(keyName, defaultValue) {
     return getWithDefault(this, keyName, defaultValue);
   },
 
@@ -444,12 +446,12 @@ export default Mixin.create({
     @param {String} keyName The name of the property to increment
     @param {Number} increment The amount to increment by. Defaults to 1
     @return {Number} The new property value
+    @public
   */
-  incrementProperty: function(keyName, increment) {
+  incrementProperty(keyName, increment) {
     if (isNone(increment)) { increment = 1; }
-    Ember.assert("Must pass a numeric value to incrementProperty", (!isNaN(parseFloat(increment)) && isFinite(increment)));
-    set(this, keyName, (parseFloat(get(this, keyName)) || 0) + increment);
-    return get(this, keyName);
+    Ember.assert('Must pass a numeric value to incrementProperty', (!isNaN(parseFloat(increment)) && isFinite(increment)));
+    return set(this, keyName, (parseFloat(get(this, keyName)) || 0) + increment);
   },
 
   /**
@@ -464,16 +466,16 @@ export default Mixin.create({
     @param {String} keyName The name of the property to decrement
     @param {Number} decrement The amount to decrement by. Defaults to 1
     @return {Number} The new property value
+    @public
   */
-  decrementProperty: function(keyName, decrement) {
+  decrementProperty(keyName, decrement) {
     if (isNone(decrement)) { decrement = 1; }
-    Ember.assert("Must pass a numeric value to decrementProperty", (!isNaN(parseFloat(decrement)) && isFinite(decrement)));
-    set(this, keyName, (get(this, keyName) || 0) - decrement);
-    return get(this, keyName);
+    Ember.assert('Must pass a numeric value to decrementProperty', (!isNaN(parseFloat(decrement)) && isFinite(decrement)));
+    return set(this, keyName, (get(this, keyName) || 0) - decrement);
   },
 
   /**
-    Set the value of a boolean property to the opposite of it's
+    Set the value of a boolean property to the opposite of its
     current value.
 
     ```javascript
@@ -482,11 +484,11 @@ export default Mixin.create({
 
     @method toggleProperty
     @param {String} keyName The name of the property to toggle
-    @return {Object} The new property value
+    @return {Boolean} The new property value
+    @public
   */
-  toggleProperty: function(keyName) {
-    set(this, keyName, !get(this, keyName));
-    return get(this, keyName);
+  toggleProperty(keyName) {
+    return set(this, keyName, !get(this, keyName));
   },
 
   /**
@@ -498,13 +500,14 @@ export default Mixin.create({
     @method cacheFor
     @param {String} keyName
     @return {Object} The cached value of the computed property, if any
+    @public
   */
-  cacheFor: function(keyName) {
+  cacheFor(keyName) {
     return cacheFor(this, keyName);
   },
 
   // intended for debugging purposes
-  observersForKey: function(keyName) {
+  observersForKey(keyName) {
     return observersFor(this, keyName);
   }
 });

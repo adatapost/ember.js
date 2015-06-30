@@ -1,5 +1,4 @@
-import { indexOf } from 'ember-metal/enumerable_utils';
-import { typeOf } from 'ember-metal/utils';
+import Ember from 'ember-metal/core';
 import EmberObject from 'ember-runtime/system/object';
 import Copyable from 'ember-runtime/mixins/copyable';
 
@@ -12,7 +11,7 @@ function _copy(obj, deep, seen, copies) {
   }
 
   // avoid cyclical loops
-  if (deep && (loc = indexOf(seen, obj)) >= 0) {
+  if (deep && (loc = seen.indexOf(obj)) >= 0) {
     return copies[loc];
   }
 
@@ -21,7 +20,7 @@ function _copy(obj, deep, seen, copies) {
 
   // IMPORTANT: this specific test will detect a native array only. Any other
   // object will need to implement Copyable.
-  if (typeOf(obj) === 'array') {
+  if (Array.isArray(obj)) {
     ret = obj.slice();
 
     if (deep) {
@@ -39,7 +38,8 @@ function _copy(obj, deep, seen, copies) {
     ret = {};
 
     for (key in obj) {
-      if (!obj.hasOwnProperty(key)) {
+      // support Null prototype
+      if (!Object.prototype.hasOwnProperty.call(obj, key)) {
         continue;
       }
 
@@ -66,14 +66,16 @@ function _copy(obj, deep, seen, copies) {
   any type of object and create a clone of it, including primitive values
   (which are not actually cloned because they are immutable).
 
-  If the passed object implements the `clone()` method, then this function
-  will simply call that method and return the result.
+  If the passed object implements the `copy()` method, then this function
+  will simply call that method and return the result. Please see
+  `Ember.Copyable` for further details.
 
   @method copy
   @for Ember
   @param {Object} obj The object to clone
   @param {Boolean} deep If true, a deep copy of the object is made
   @return {Object} The cloned object
+  @public
 */
 export default function copy(obj, deep) {
   // fast paths

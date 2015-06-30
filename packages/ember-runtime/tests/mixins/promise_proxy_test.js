@@ -1,38 +1,34 @@
-import Ember from "ember-metal/core";
-import {create} from "ember-metal/platform";
-import {get} from "ember-metal/property_get";
-import run from "ember-metal/run_loop";
-import ObjectProxy from "ember-runtime/system/object_proxy";
-import PromiseProxyMixin from "ember-runtime/mixins/promise_proxy";
-import EmberRSVP from "ember-runtime/ext/rsvp";
-var RSVP = requireModule("rsvp"); // jshint ignore:line
+import {get} from 'ember-metal/property_get';
+import run from 'ember-metal/run_loop';
+import ObjectProxy from 'ember-runtime/system/object_proxy';
+import PromiseProxyMixin from 'ember-runtime/mixins/promise_proxy';
+import EmberRSVP from 'ember-runtime/ext/rsvp';
+import {
+  onerrorDefault
+} from 'ember-runtime/ext/rsvp';
+import * as RSVP from 'rsvp';
 
 var ObjectPromiseProxy;
 
-test("present on ember namespace", function(){
-  ok(PromiseProxyMixin, "expected PromiseProxyMixin to exist");
+QUnit.test('present on ember namespace', function() {
+  ok(PromiseProxyMixin, 'expected PromiseProxyMixin to exist');
 });
 
-QUnit.module("Ember.PromiseProxy - ObjectProxy", {
-  setup: function() {
+QUnit.module('Ember.PromiseProxy - ObjectProxy', {
+  setup() {
     ObjectPromiseProxy = ObjectProxy.extend(PromiseProxyMixin);
   }
 });
 
-test("no promise, invoking then should raise", function(){
-  var value = {
-    firstName: 'stef',
-    lastName: 'penner'
-  };
-
+QUnit.test('no promise, invoking then should raise', function() {
   var proxy = ObjectPromiseProxy.create();
 
-  raises(function(){
-    proxy.then(Ember.K, Ember.K);
-  }, new RegExp("PromiseProxy's promise must be set"));
+  throws(function() {
+    proxy.then(function() { return this; }, function() { return this; });
+  }, new RegExp('PromiseProxy\'s promise must be set'));
 });
 
-test("fulfillment", function(){
+QUnit.test('fulfillment', function() {
   var value = {
     firstName: 'stef',
     lastName: 'penner'
@@ -47,17 +43,17 @@ test("fulfillment", function(){
   var didFulfillCount = 0;
   var didRejectCount  = 0;
 
-  proxy.then(function(){
+  proxy.then(function() {
     didFulfillCount++;
-  }, function(){
+  }, function() {
     didRejectCount++;
   });
 
-  equal(get(proxy, 'content'),     undefined, 'expects the proxy to have no content');
-  equal(get(proxy, 'reason'),      undefined, 'expects the proxy to have no reason');
-  equal(get(proxy, 'isPending'),   true,  'expects the proxy to indicate that it is loading');
-  equal(get(proxy, 'isSettled'),   false, 'expects the proxy to indicate that it is not settled');
-  equal(get(proxy, 'isRejected'),  false, 'expects the proxy to indicate that it is not rejected');
+  equal(get(proxy, 'content'), undefined, 'expects the proxy to have no content');
+  equal(get(proxy, 'reason'), undefined, 'expects the proxy to have no reason');
+  equal(get(proxy, 'isPending'), true, 'expects the proxy to indicate that it is loading');
+  equal(get(proxy, 'isSettled'), false, 'expects the proxy to indicate that it is not settled');
+  equal(get(proxy, 'isRejected'), false, 'expects the proxy to indicate that it is not rejected');
   equal(get(proxy, 'isFulfilled'), false, 'expects the proxy to indicate that it is not fulfilled');
 
   equal(didFulfillCount, 0, 'should not yet have been fulfilled');
@@ -68,35 +64,35 @@ test("fulfillment", function(){
   equal(didFulfillCount, 1, 'should have been fulfilled');
   equal(didRejectCount, 0, 'should not have been rejected');
 
-  equal(get(proxy, 'content'),     value, 'expects the proxy to have content');
-  equal(get(proxy, 'reason'),      undefined, 'expects the proxy to still have no reason');
-  equal(get(proxy, 'isPending'),   false, 'expects the proxy to indicate that it is no longer loading');
-  equal(get(proxy, 'isSettled'),   true,  'expects the proxy to indicate that it is settled');
-  equal(get(proxy, 'isRejected'),  false, 'expects the proxy to indicate that it is not rejected');
-  equal(get(proxy, 'isFulfilled'), true,  'expects the proxy to indicate that it is fulfilled');
+  equal(get(proxy, 'content'), value, 'expects the proxy to have content');
+  equal(get(proxy, 'reason'), undefined, 'expects the proxy to still have no reason');
+  equal(get(proxy, 'isPending'), false, 'expects the proxy to indicate that it is no longer loading');
+  equal(get(proxy, 'isSettled'), true, 'expects the proxy to indicate that it is settled');
+  equal(get(proxy, 'isRejected'), false, 'expects the proxy to indicate that it is not rejected');
+  equal(get(proxy, 'isFulfilled'), true, 'expects the proxy to indicate that it is fulfilled');
 
   run(deferred, 'resolve', value);
 
   equal(didFulfillCount, 1, 'should still have been only fulfilled once');
-  equal(didRejectCount,  0, 'should still not have been rejected');
+  equal(didRejectCount, 0, 'should still not have been rejected');
 
   run(deferred, 'reject', value);
 
   equal(didFulfillCount, 1, 'should still have been only fulfilled once');
-  equal(didRejectCount,  0, 'should still not have been rejected');
+  equal(didRejectCount, 0, 'should still not have been rejected');
 
-  equal(get(proxy, 'content'),     value, 'expects the proxy to have still have same content');
-  equal(get(proxy, 'reason'),      undefined, 'expects the proxy still to have no reason');
-  equal(get(proxy, 'isPending'),   false, 'expects the proxy to indicate that it is no longer loading');
-  equal(get(proxy, 'isSettled'),   true,  'expects the proxy to indicate that it is settled');
-  equal(get(proxy, 'isRejected'),  false, 'expects the proxy to indicate that it is not rejected');
-  equal(get(proxy, 'isFulfilled'), true,  'expects the proxy to indicate that it is fulfilled');
+  equal(get(proxy, 'content'), value, 'expects the proxy to have still have same content');
+  equal(get(proxy, 'reason'), undefined, 'expects the proxy still to have no reason');
+  equal(get(proxy, 'isPending'), false, 'expects the proxy to indicate that it is no longer loading');
+  equal(get(proxy, 'isSettled'), true, 'expects the proxy to indicate that it is settled');
+  equal(get(proxy, 'isRejected'), false, 'expects the proxy to indicate that it is not rejected');
+  equal(get(proxy, 'isFulfilled'), true, 'expects the proxy to indicate that it is fulfilled');
 
   // rest of the promise semantics are tested in directly in RSVP
 });
 
-test("rejection", function(){
-  var reason = new Error("failure");
+QUnit.test('rejection', function() {
+  var reason = new Error('failure');
   var deferred = RSVP.defer();
   var proxy = ObjectPromiseProxy.create({
     promise: deferred.promise
@@ -105,17 +101,17 @@ test("rejection", function(){
   var didFulfillCount = 0;
   var didRejectCount  = 0;
 
-  proxy.then(function(){
+  proxy.then(function() {
     didFulfillCount++;
-  }, function(){
+  }, function() {
     didRejectCount++;
   });
 
-  equal(get(proxy, 'content'),     undefined, 'expects the proxy to have no content');
-  equal(get(proxy, 'reason'),      undefined, 'expects the proxy to have no reason');
-  equal(get(proxy, 'isPending'),   true,  'expects the proxy to indicate that it is loading');
-  equal(get(proxy, 'isSettled'),   false, 'expects the proxy to indicate that it is not settled');
-  equal(get(proxy, 'isRejected'),  false, 'expects the proxy to indicate that it is not rejected');
+  equal(get(proxy, 'content'), undefined, 'expects the proxy to have no content');
+  equal(get(proxy, 'reason'), undefined, 'expects the proxy to have no reason');
+  equal(get(proxy, 'isPending'), true, 'expects the proxy to indicate that it is loading');
+  equal(get(proxy, 'isSettled'), false, 'expects the proxy to indicate that it is not settled');
+  equal(get(proxy, 'isRejected'), false, 'expects the proxy to indicate that it is not rejected');
   equal(get(proxy, 'isFulfilled'), false, 'expects the proxy to indicate that it is not fulfilled');
 
   equal(didFulfillCount, 0, 'should not yet have been fulfilled');
@@ -126,12 +122,12 @@ test("rejection", function(){
   equal(didFulfillCount, 0, 'should not yet have been fulfilled');
   equal(didRejectCount, 1, 'should have been rejected');
 
-  equal(get(proxy, 'content'),     undefined, 'expects the proxy to have no content');
-  equal(get(proxy, 'reason'),      reason, 'expects the proxy to have a reason');
-  equal(get(proxy, 'isPending'),   false, 'expects the proxy to indicate that it is not longer loading');
-  equal(get(proxy, 'isSettled'),   true,  'expects the proxy to indicate that it is settled');
-  equal(get(proxy, 'isRejected'),  true, 'expects the proxy to indicate that it is  rejected');
-  equal(get(proxy, 'isFulfilled'), false,  'expects the proxy to indicate that it is not fulfilled');
+  equal(get(proxy, 'content'), undefined, 'expects the proxy to have no content');
+  equal(get(proxy, 'reason'), reason, 'expects the proxy to have a reason');
+  equal(get(proxy, 'isPending'), false, 'expects the proxy to indicate that it is not longer loading');
+  equal(get(proxy, 'isSettled'), true, 'expects the proxy to indicate that it is settled');
+  equal(get(proxy, 'isRejected'), true, 'expects the proxy to indicate that it is  rejected');
+  equal(get(proxy, 'isFulfilled'), false, 'expects the proxy to indicate that it is not fulfilled');
 
   run(deferred, 'reject', reason);
 
@@ -143,94 +139,127 @@ test("rejection", function(){
   equal(didFulfillCount, 0, 'should stll not yet have been fulfilled');
   equal(didRejectCount, 1, 'should still remain rejected');
 
-  equal(get(proxy, 'content'),     undefined, 'expects the proxy to have no content');
-  equal(get(proxy, 'reason'),      reason, 'expects the proxy to have a reason');
-  equal(get(proxy, 'isPending'),   false, 'expects the proxy to indicate that it is not longer loading');
-  equal(get(proxy, 'isSettled'),   true,  'expects the proxy to indicate that it is settled');
-  equal(get(proxy, 'isRejected'),  true, 'expects the proxy to indicate that it is  rejected');
-  equal(get(proxy, 'isFulfilled'), false,  'expects the proxy to indicate that it is not fulfilled');
+  equal(get(proxy, 'content'), undefined, 'expects the proxy to have no content');
+  equal(get(proxy, 'reason'), reason, 'expects the proxy to have a reason');
+  equal(get(proxy, 'isPending'), false, 'expects the proxy to indicate that it is not longer loading');
+  equal(get(proxy, 'isSettled'), true, 'expects the proxy to indicate that it is settled');
+  equal(get(proxy, 'isRejected'), true, 'expects the proxy to indicate that it is  rejected');
+  equal(get(proxy, 'isFulfilled'), false, 'expects the proxy to indicate that it is not fulfilled');
 });
 
-test("unhandled rejects still propogate to RSVP.on('error', ...) ", function(){
+QUnit.test('unhandled rejects still propagate to RSVP.on(\'error\', ...) ', function() {
   expect(1);
 
   RSVP.on('error', onerror);
-  RSVP.off('error', RSVP.onerrorDefault);
+  RSVP.off('error', onerrorDefault);
 
-  var expectedReason = new Error("failure");
+  var expectedReason = new Error('failure');
   var deferred = RSVP.defer();
 
   var proxy = ObjectPromiseProxy.create({
     promise: deferred.promise
   });
 
-  var promise = proxy.get('promise');
+  proxy.get('promise');
 
   function onerror(reason) {
     equal(reason, expectedReason, 'expected reason');
   }
 
   RSVP.on('error', onerror);
-  RSVP.off('error', RSVP.onerrorDefault);
+  RSVP.off('error', onerrorDefault);
 
   run(deferred, 'reject', expectedReason);
 
-  RSVP.on('error', RSVP.onerrorDefault);
+  RSVP.on('error', onerrorDefault);
   RSVP.off('error', onerror);
 
   run(deferred, 'reject', expectedReason);
 
-  RSVP.on('error', RSVP.onerrorDefault);
+  RSVP.on('error', onerrorDefault);
   RSVP.off('error', onerror);
 });
 
-test("should work with promise inheritance", function(){
+QUnit.test('should work with promise inheritance', function() {
   function PromiseSubclass() {
     RSVP.Promise.apply(this, arguments);
   }
 
-  PromiseSubclass.prototype = create(RSVP.Promise.prototype);
+  PromiseSubclass.prototype = Object.create(RSVP.Promise.prototype);
   PromiseSubclass.prototype.constructor = PromiseSubclass;
   PromiseSubclass.cast = RSVP.Promise.cast;
 
   var proxy = ObjectPromiseProxy.create({
-    promise: new PromiseSubclass(function(){ })
+    promise: new PromiseSubclass(function() { })
   });
 
-  ok(proxy.then() instanceof PromiseSubclass, 'promise proxy respected inheritence');
+  ok(proxy.then() instanceof PromiseSubclass, 'promise proxy respected inheritance');
 });
 
-test("should reset isFulfilled and isRejected when promise is reset", function() {
+QUnit.test('should reset isFulfilled and isRejected when promise is reset', function() {
   var deferred = EmberRSVP.defer();
 
   var proxy = ObjectPromiseProxy.create({
     promise: deferred.promise
   });
 
-  equal(get(proxy, 'isPending'),   true,  'expects the proxy to indicate that it is loading');
-  equal(get(proxy, 'isSettled'),   false, 'expects the proxy to indicate that it is not settled');
-  equal(get(proxy, 'isRejected'),  false, 'expects the proxy to indicate that it is not rejected');
+  equal(get(proxy, 'isPending'), true, 'expects the proxy to indicate that it is loading');
+  equal(get(proxy, 'isSettled'), false, 'expects the proxy to indicate that it is not settled');
+  equal(get(proxy, 'isRejected'), false, 'expects the proxy to indicate that it is not rejected');
   equal(get(proxy, 'isFulfilled'), false, 'expects the proxy to indicate that it is not fulfilled');
 
   run(deferred, 'resolve');
 
-  equal(get(proxy, 'isPending'),   false, 'expects the proxy to indicate that it is no longer loading');
-  equal(get(proxy, 'isSettled'),   true,  'expects the proxy to indicate that it is settled');
-  equal(get(proxy, 'isRejected'),  false, 'expects the proxy to indicate that it is not rejected');
-  equal(get(proxy, 'isFulfilled'), true,  'expects the proxy to indicate that it is fulfilled');
+  equal(get(proxy, 'isPending'), false, 'expects the proxy to indicate that it is no longer loading');
+  equal(get(proxy, 'isSettled'), true, 'expects the proxy to indicate that it is settled');
+  equal(get(proxy, 'isRejected'), false, 'expects the proxy to indicate that it is not rejected');
+  equal(get(proxy, 'isFulfilled'), true, 'expects the proxy to indicate that it is fulfilled');
 
   var anotherDeferred = EmberRSVP.defer();
   proxy.set('promise', anotherDeferred.promise);
 
-  equal(get(proxy, 'isPending'),   true,  'expects the proxy to indicate that it is loading');
-  equal(get(proxy, 'isSettled'),   false, 'expects the proxy to indicate that it is not settled');
-  equal(get(proxy, 'isRejected'),  false, 'expects the proxy to indicate that it is not rejected');
+  equal(get(proxy, 'isPending'), true, 'expects the proxy to indicate that it is loading');
+  equal(get(proxy, 'isSettled'), false, 'expects the proxy to indicate that it is not settled');
+  equal(get(proxy, 'isRejected'), false, 'expects the proxy to indicate that it is not rejected');
   equal(get(proxy, 'isFulfilled'), false, 'expects the proxy to indicate that it is not fulfilled');
 
   run(anotherDeferred, 'reject');
 
-  equal(get(proxy, 'isPending'),   false, 'expects the proxy to indicate that it is not longer loading');
-  equal(get(proxy, 'isSettled'),   true,  'expects the proxy to indicate that it is settled');
-  equal(get(proxy, 'isRejected'),  true,  'expects the proxy to indicate that it is  rejected');
+  equal(get(proxy, 'isPending'), false, 'expects the proxy to indicate that it is not longer loading');
+  equal(get(proxy, 'isSettled'), true, 'expects the proxy to indicate that it is settled');
+  equal(get(proxy, 'isRejected'), true, 'expects the proxy to indicate that it is  rejected');
   equal(get(proxy, 'isFulfilled'), false, 'expects the proxy to indicate that it is not fulfilled');
+});
+
+QUnit.test('should have content when isFulfilled is set', function() {
+  var deferred = EmberRSVP.defer();
+
+  var proxy = ObjectPromiseProxy.create({
+    promise: deferred.promise
+  });
+
+  proxy.addObserver('isFulfilled', function() {
+    equal(get(proxy, 'content'), true);
+  });
+
+  run(deferred, 'resolve', true);
+});
+
+QUnit.test('should have reason when isRejected is set', function() {
+  var error = new Error('Y U REJECT?!?');
+  var deferred = EmberRSVP.defer();
+
+  var proxy = ObjectPromiseProxy.create({
+    promise: deferred.promise
+  });
+
+  proxy.addObserver('isRejected', function() {
+    equal(get(proxy, 'reason'), error);
+  });
+
+  try {
+    run(deferred, 'reject', error);
+  } catch(e) {
+    equal(e, error);
+  }
 });

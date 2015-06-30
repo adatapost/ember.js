@@ -1,6 +1,6 @@
-import Ember from "ember-metal/core"; // Ember.K
-import { inspect } from "ember-metal/utils";
-import EmberObject from "ember-runtime/system/object";
+import EmberObject from 'ember-runtime/system/object';
+
+function K() { return this; }
 
 /**
  @module ember
@@ -13,6 +13,7 @@ import EmberObject from "ember-runtime/system/object";
 
   @class Adapter
   @namespace Ember.Test
+  @public
 */
 var Adapter = EmberObject.extend({
   /**
@@ -24,7 +25,7 @@ var Adapter = EmberObject.extend({
     @public
     @method asyncStart
   */
-  asyncStart: Ember.K,
+  asyncStart: K,
 
   /**
     This callback will be called whenever an async operation has completed.
@@ -32,7 +33,7 @@ var Adapter = EmberObject.extend({
     @public
     @method asyncEnd
   */
-  asyncEnd: Ember.K,
+  asyncEnd: K,
 
   /**
     Override this method with your testing framework's false assertion.
@@ -51,7 +52,7 @@ var Adapter = EmberObject.extend({
     @method exception
     @param {String} error The exception to be raised.
   */
-  exception: function(error) {
+  exception(error) {
     throw error;
   }
 });

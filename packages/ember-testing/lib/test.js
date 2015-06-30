@@ -1,16 +1,13 @@
-import Ember from "ember-metal/core";
-import emberRun from "ember-metal/run_loop";
-import { create } from "ember-metal/platform";
-import compare from "ember-runtime/compare";
-import RSVP from "ember-runtime/ext/rsvp";
-import setupForTesting from "ember-testing/setup_for_testing";
-import EmberApplication from "ember-application/system/application";
+import Ember from 'ember-metal/core';
+import emberRun from 'ember-metal/run_loop';
+import RSVP from 'ember-runtime/ext/rsvp';
+import setupForTesting from 'ember-testing/setup_for_testing';
+import EmberApplication from 'ember-application/system/application';
 
 /**
   @module ember
   @submodule ember-testing
- */
-var slice = [].slice;
+*/
 var helpers = {};
 var injectHelpersCallbacks = [];
 
@@ -24,6 +21,7 @@ var injectHelpersCallbacks = [];
 
   @class Test
   @namespace Ember
+  @public
 */
 var Test = {
   /**
@@ -31,6 +29,7 @@ var Test = {
 
     @property _helpers
     @private
+    @since 1.7.0
   */
   _helpers: helpers,
 
@@ -64,7 +63,7 @@ var Test = {
     @param {Function} helperMethod
     @param options {Object}
   */
-  registerHelper: function(name, helperMethod) {
+  registerHelper(name, helperMethod) {
     helpers[name] = {
       method: helperMethod,
       meta: { wait: false }
@@ -111,7 +110,7 @@ var Test = {
     @param {Function} helperMethod
     @since 1.2.0
   */
-  registerAsyncHelper: function(name, helperMethod) {
+  registerAsyncHelper(name, helperMethod) {
     helpers[name] = {
       method: helperMethod,
       meta: { wait: true }
@@ -131,7 +130,7 @@ var Test = {
     @method unregisterHelper
     @param {String} name The helper to remove.
   */
-  unregisterHelper: function(name) {
+  unregisterHelper(name) {
     delete helpers[name];
     delete Test.Promise.prototype[name];
   },
@@ -160,7 +159,7 @@ var Test = {
     @method onInjectHelpers
     @param {Function} callback The function to be called.
   */
-  onInjectHelpers: function(callback) {
+  onInjectHelpers(callback) {
     injectHelpersCallbacks.push(callback);
   },
 
@@ -174,9 +173,11 @@ var Test = {
     @public
     @method promise
     @param {Function} resolver The function used to resolve the promise.
+    @param {String} label An optional string for identifying the promise.
   */
-  promise: function(resolver) {
-    return new Test.Promise(resolver);
+  promise(resolver, label) {
+    var fullLabel = `Ember.Test.promise: ${label || '<Unknown Promise>'}`;
+    return new Test.Promise(resolver, fullLabel);
   },
 
   /**
@@ -210,7 +211,7 @@ var Test = {
     @param {Mixed} The value to resolve
     @since 1.2.0
   */
-  resolve: function(val) {
+  resolve(val) {
     return Test.promise(function(resolve) {
       return resolve(val);
     });
@@ -243,7 +244,7 @@ var Test = {
      @param {Function} callback
      @since 1.2.0
   */
-  registerWaiter: function(context, callback) {
+  registerWaiter(context, callback) {
     if (arguments.length === 1) {
       callback = context;
       context = null;
@@ -263,27 +264,24 @@ var Test = {
      @param {Function} callback
      @since 1.2.0
   */
-  unregisterWaiter: function(context, callback) {
-    var pair;
+  unregisterWaiter(context, callback) {
     if (!this.waiters) { return; }
     if (arguments.length === 1) {
       callback = context;
       context = null;
     }
-    pair = [context, callback];
     this.waiters = Ember.A(this.waiters.filter(function(elt) {
-      return compare(elt, pair)!==0;
+      return !(elt[0] === context && elt[1] === callback);
     }));
   }
 };
 
 function helper(app, name) {
-  var fn = helpers[name].method,
-      meta = helpers[name].meta;
+  var fn = helpers[name].method;
+  var meta = helpers[name].meta;
 
-  return function() {
-    var args = slice.call(arguments),
-        lastPromise = Test.lastPromise;
+  return function(...args) {
+    var lastPromise;
 
     args.unshift(app);
 
@@ -294,28 +292,28 @@ function helper(app, name) {
       return fn.apply(app, args);
     }
 
-    if (!lastPromise) {
-      // It's the first async helper in current context
-      lastPromise = fn.apply(app, args);
-    } else {
-      // wait for last helper's promise to resolve
-      // and then execute
-      run(function() {
-        lastPromise = Test.resolve(lastPromise).then(function() {
-          return fn.apply(app, args);
-        });
-      });
-    }
+    lastPromise = run(function() {
+      return Test.resolve(Test.lastPromise);
+    });
 
-    return lastPromise;
+    // wait for last helper's promise to resolve and then
+    // execute. To be safe, we need to tell the adapter we're going
+    // asynchronous here, because fn may not be invoked before we
+    // return.
+    Test.adapter.asyncStart();
+    return lastPromise.then(function() {
+      return fn.apply(app, args);
+    }).finally(function() {
+      Test.adapter.asyncEnd();
+    });
   };
 }
 
 function run(fn) {
   if (!emberRun.currentRunLoop) {
-    emberRun(fn);
+    return emberRun(fn);
   } else {
-    fn();
+    return fn();
   }
 }
 
@@ -329,6 +327,7 @@ EmberApplication.reopen({
     @property testHelpers
     @type {Object}
     @default {}
+    @public
   */
   testHelpers: {},
 
@@ -357,25 +356,27 @@ EmberApplication.reopen({
   @type {Boolean}
   @default false
   @since 1.3.0
+  @public
   */
   testing: false,
 
   /**
-   This hook defers the readiness of the application, so that you can start
-   the app when your tests are ready to run. It also sets the router's
-   location to 'none', so that the window's location will not be modified
-   (preventing both accidental leaking of state between tests and interference
-   with your testing framework).
+    This hook defers the readiness of the application, so that you can start
+    the app when your tests are ready to run. It also sets the router's
+    location to 'none', so that the window's location will not be modified
+    (preventing both accidental leaking of state between tests and interference
+    with your testing framework).
 
-   Example:
+    Example:
 
-  ```
-  App.setupForTesting();
-  ```
+    ```
+    App.setupForTesting();
+    ```
 
     @method setupForTesting
+    @public
   */
-  setupForTesting: function() {
+  setupForTesting() {
     setupForTesting();
 
     this.testing = true;
@@ -393,8 +394,9 @@ EmberApplication.reopen({
     @type {Object} The object to be used for test helpers.
     @default window
     @since 1.2.0
+    @private
   */
-  helperContainer: window,
+  helperContainer: null,
 
   /**
     This injects the test helpers into the `helperContainer` object. If an object is provided
@@ -403,18 +405,23 @@ EmberApplication.reopen({
     (so that it can be reset if the helper is removed with `unregisterHelper` or
     `removeTestHelpers`).
 
-   Any callbacks registered with `onInjectHelpers` will be called once the
-   helpers have been injected.
+    Any callbacks registered with `onInjectHelpers` will be called once the
+    helpers have been injected.
 
-  Example:
-  ```
-  App.injectTestHelpers();
-  ```
+    Example:
+    ```
+    App.injectTestHelpers();
+    ```
 
     @method injectTestHelpers
+    @public
   */
-  injectTestHelpers: function(helperContainer) {
-    if (helperContainer) { this.helperContainer = helperContainer; }
+  injectTestHelpers(helperContainer) {
+    if (helperContainer) {
+      this.helperContainer = helperContainer;
+    } else {
+      this.helperContainer = window;
+    }
 
     this.testHelpers = {};
     for (var name in helpers) {
@@ -423,7 +430,7 @@ EmberApplication.reopen({
       protoWrap(Test.Promise.prototype, name, helper(this, name), helpers[name].meta.wait);
     }
 
-    for(var i = 0, l = injectHelpersCallbacks.length; i < l; i++) {
+    for (var i = 0, l = injectHelpersCallbacks.length; i < l; i++) {
       injectHelpersCallbacks[i](this);
     }
   },
@@ -441,7 +448,9 @@ EmberApplication.reopen({
     @public
     @method removeTestHelpers
   */
-  removeTestHelpers: function() {
+  removeTestHelpers() {
+    if (!this.helperContainer) { return; }
+
     for (var name in helpers) {
       this.helperContainer[name] = this.originalMethods[name];
       delete this.testHelpers[name];
@@ -454,8 +463,7 @@ EmberApplication.reopen({
 // But still here for backwards compatibility
 // of helper chaining
 function protoWrap(proto, name, callback, isAsync) {
-  proto[name] = function() {
-    var args = arguments;
+  proto[name] = function(...args) {
     if (isAsync) {
       return callback.apply(this, args);
     } else {
@@ -471,8 +479,9 @@ Test.Promise = function() {
   Test.lastPromise = this;
 };
 
-Test.Promise.prototype = create(RSVP.Promise.prototype);
+Test.Promise.prototype = Object.create(RSVP.Promise.prototype);
 Test.Promise.prototype.constructor = Test.Promise;
+Test.Promise.resolve = Test.resolve;
 
 // Patch `then` to isolate async methods
 // specifically `Ember.Test.lastPromise`
@@ -489,7 +498,6 @@ Test.Promise.prototype.then = function(onSuccess, onFailure) {
 // 1. Set `Ember.Test.lastPromise` to null
 // 2. Invoke method
 // 3. Return the last promise created during method
-// 4. Restore `Ember.Test.lastPromise` to original value
 function isolate(fn, val) {
   var value, lastPromise;
 
@@ -499,6 +507,7 @@ function isolate(fn, val) {
   value = fn(val);
 
   lastPromise = Test.lastPromise;
+  Test.lastPromise = null;
 
   // If the method returned a promise
   // return that promise. If not,
@@ -506,12 +515,11 @@ function isolate(fn, val) {
   if ((value && (value instanceof Test.Promise)) || !lastPromise) {
     return value;
   } else {
-    run(function() {
-      lastPromise = Test.resolve(lastPromise).then(function() {
+    return run(function() {
+      return Test.resolve(lastPromise).then(function() {
         return value;
       });
     });
-    return lastPromise;
   }
 }
 

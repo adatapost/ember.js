@@ -1,23 +1,22 @@
-import Ember from "ember-metal/core"; // Ember.K
-import run from "ember-metal/run_loop";
-import QUnitAdapter from "ember-testing/adapters/qunit";
+import run from 'ember-metal/run_loop';
+import QUnitAdapter from 'ember-testing/adapters/qunit';
 
 var adapter;
 
-QUnit.module("ember-testing QUnitAdapter", {
-  setup: function() {
+QUnit.module('ember-testing QUnitAdapter', {
+  setup() {
     adapter = new QUnitAdapter();
   },
-  teardown: function() {
+  teardown() {
     run(adapter, adapter.destroy);
   }
 });
 
-test("asyncStart calls stop", function() {
+QUnit.test('asyncStart calls stop', function() {
   var originalStop = QUnit.stop;
   try {
-    QUnit.stop = function(){
-      ok(true, "stop called");
+    QUnit.stop = function() {
+      ok(true, 'stop called');
     };
     adapter.asyncStart();
   } finally {
@@ -25,11 +24,11 @@ test("asyncStart calls stop", function() {
   }
 });
 
-test("asyncEnd calls start", function() {
+QUnit.test('asyncEnd calls start', function() {
   var originalStart = QUnit.start;
   try {
-    QUnit.start = function(){
-      ok(true, "start called");
+    QUnit.start = function() {
+      ok(true, 'start called');
     };
     adapter.asyncEnd();
   } finally {
@@ -37,11 +36,12 @@ test("asyncEnd calls start", function() {
   }
 });
 
-test("exception causes a failing assertion", function() {
-  var error = {err: 'hai'}, originalOk = window.ok;
+QUnit.test('exception causes a failing assertion', function() {
+  var error = { err: 'hai' };
+  var originalOk = window.ok;
   try {
-    window.ok = function(val, msg){
-      originalOk(!val, "ok is called with false");
+    window.ok = function(val, msg) {
+      originalOk(!val, 'ok is called with false');
       originalOk(msg, '{err: "hai"}');
     };
     adapter.exception(error);

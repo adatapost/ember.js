@@ -5,17 +5,15 @@
 
 import Ember from 'ember-metal/core';
 import { get } from 'ember-metal/property_get';
-import { set } from 'ember-metal/property_set';
-import {
-  forEach,
-  replace
-} from 'ember-metal/enumerable_utils';
 import ArrayProxy from 'ember-runtime/system/array_proxy';
 import SortableMixin from 'ember-runtime/mixins/sortable';
 import ControllerMixin from 'ember-runtime/mixins/controller';
 import { computed } from 'ember-metal/computed';
 import EmberError from 'ember-metal/error';
+import EmberArray from 'ember-runtime/mixins/array';
+import replace from 'ember-metal/replace';
 
+export var arrayControllerDeprecation = '`Ember.ArrayController` is deprecated.';
 
 /**
   `Ember.ArrayController` provides a way for you to publish a collection of
@@ -40,8 +38,8 @@ import EmberError from 'ember-metal/error';
   Then, create a view that binds to your new controller:
 
   ```handlebars
-  {{#each MyApp.listController}}
-    {{firstName}} {{lastName}}
+  {{#each MyApp.listController as |person|}}
+    {{person.firstName}} {{person.lastName}}
   {{/each}}
   ```
 
@@ -57,7 +55,7 @@ import EmberError from 'ember-metal/error';
   For example:
 
   ```handlebars
-  {{#each post in controller}}
+  {{#each controller as |post|}}
     <li>{{post.title}} ({{post.titleLength}} characters)</li>
   {{/each}}
   ```
@@ -101,16 +99,27 @@ import EmberError from 'ember-metal/error';
   @extends Ember.ArrayProxy
   @uses Ember.SortableMixin
   @uses Ember.ControllerMixin
+  @deprecated
+  @public
 */
 
 export default ArrayProxy.extend(ControllerMixin, SortableMixin, {
 
   /**
-    The controller used to wrap items, if any.
+    A string containing the controller name used to wrap items.
+
+    For example:
+
+    ```javascript
+    App.MyArrayController = Ember.ArrayController.extend({
+      itemController: 'myItem' // use App.MyItemController
+    });
+    ```
 
     @property itemController
     @type String
     @default null
+    @private
   */
   itemController: null,
 
@@ -137,12 +146,13 @@ export default ArrayProxy.extend(ControllerMixin, SortableMixin, {
     @method lookupItemController
     @param {Object} object
     @return {String}
+    @private
   */
-  lookupItemController: function(object) {
+  lookupItemController(object) {
     return get(this, 'itemController');
   },
 
-  objectAtContent: function(idx) {
+  objectAtContent(idx) {
     var length = get(this, 'length');
     var arrangedContent = get(this, 'arrangedContent');
     var object = arrangedContent && arrangedContent.objectAt(idx);
@@ -165,18 +175,18 @@ export default ArrayProxy.extend(ControllerMixin, SortableMixin, {
     return object;
   },
 
-  arrangedContentDidChange: function() {
-    this._super();
+  arrangedContentDidChange() {
+    this._super(...arguments);
     this._resetSubControllers();
   },
 
-  arrayContentDidChange: function(idx, removedCnt, addedCnt) {
+  arrayContentDidChange(idx, removedCnt, addedCnt) {
     var subControllers = this._subControllers;
 
     if (subControllers.length) {
       var subControllersToRemove = subControllers.slice(idx, idx + removedCnt);
 
-      forEach(subControllersToRemove, function(subController) {
+      subControllersToRemove.forEach(function(subController) {
         if (subController) {
           subController.destroy();
         }
@@ -191,26 +201,38 @@ export default ArrayProxy.extend(ControllerMixin, SortableMixin, {
     this._super(idx, removedCnt, addedCnt);
   },
 
-  init: function() {
-    this._super();
+  init() {
+    Ember.deprecate(arrayControllerDeprecation);
+    this._super(...arguments);
     this._subControllers = [];
   },
 
-  model: computed(function () {
-    return Ember.A();
+  model: computed({
+    get(key) {
+      return Ember.A();
+    },
+    set(key, value) {
+      Ember.assert(
+        'ArrayController expects `model` to implement the Ember.Array mixin. ' +
+        'This can often be fixed by wrapping your model with `Ember.A()`.',
+        EmberArray.detect(value) || !value
+      );
+
+      return value;
+    }
   }),
 
   /**
-   * Flag to mark as being "virtual". Used to keep this instance
-   * from participating in the parentController hierarchy.
-   *
-   * @private
-   * @property _isVirtual
-   * @type Boolean
-   */
+    Flag to mark as being "virtual". Used to keep this instance
+    from participating in the parentController hierarchy.
+
+    @private
+    @property _isVirtual
+    @type Boolean
+  */
   _isVirtual: false,
 
-  controllerAt: function(idx, object, controllerClass) {
+  controllerAt(idx, object, controllerClass) {
     var container = get(this, 'container');
     var subControllers = this._subControllers;
     var fullName, subController, parentController;
@@ -223,16 +245,16 @@ export default ArrayProxy.extend(ControllerMixin, SortableMixin, {
       }
     }
 
-    fullName = 'controller:' + controllerClass;
-
-    if (!container.has(fullName)) {
-      throw new EmberError('Could not resolve itemController: "' + controllerClass + '"');
-    }
-
     if (this._isVirtual) {
       parentController = get(this, 'parentController');
     } else {
       parentController = this;
+    }
+
+    fullName = 'controller:' + controllerClass;
+
+    if (!container._registry.has(fullName)) {
+      throw new EmberError('Could not resolve itemController: "' + controllerClass + '"');
     }
 
     subController = container.lookupFactory(fullName).create({
@@ -248,7 +270,7 @@ export default ArrayProxy.extend(ControllerMixin, SortableMixin, {
 
   _subControllers: null,
 
-  _resetSubControllers: function() {
+  _resetSubControllers() {
     var controller;
     var subControllers = this._subControllers;
 
@@ -265,8 +287,8 @@ export default ArrayProxy.extend(ControllerMixin, SortableMixin, {
     }
   },
 
-  willDestroy: function() {
+  willDestroy() {
     this._resetSubControllers();
-    this._super();
+    this._super(...arguments);
   }
 });

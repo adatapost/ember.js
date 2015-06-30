@@ -1,35 +1,46 @@
 /**
-Ember Views
-
 @module ember
 @submodule ember-views
-@requires ember-runtime
-@main ember-views
 */
 
 // BEGIN IMPORTS
-import Ember from "ember-runtime";
-import jQuery from "ember-views/system/jquery";
+import Ember from 'ember-runtime';
+import jQuery from 'ember-views/system/jquery';
 import {
-  setInnerHTML,
-  isSimpleClick
-} from "ember-views/system/utils";
-import RenderBuffer from "ember-views/system/render_buffer";
-import "ember-views/system/ext";  // for the side effect of extending Ember.run.queues
+  isSimpleClick,
+  getViewClientRects,
+  getViewBoundingClientRect
+} from 'ember-views/system/utils';
+import RenderBuffer from 'ember-views/compat/render_buffer';
+import 'ember-views/system/ext';  // for the side effect of extending Ember.run.queues
 import {
   cloneStates,
   states
-} from "ember-views/views/states";
+} from 'ember-views/views/states';
 
-import  CoreView from "ember-views/views/core_view";
-import  View from "ember-views/views/view";
-import  ViewCollection from "ember-views/views/view_collection";
-import ContainerView from "ember-views/views/container_view";
-import CollectionView from "ember-views/views/collection_view";
-import Component from "ember-views/views/component";
+import Renderer from 'ember-metal-views/renderer';
+import { DeprecatedCoreView } from 'ember-views/views/core_view';
+import { DeprecatedView } from 'ember-views/views/view';
+import ContainerView from 'ember-views/views/container_view';
+import CollectionView from 'ember-views/views/collection_view';
+import Component from 'ember-views/views/component';
 
-import EventDispatcher from "ember-views/system/event_dispatcher";
-import ViewTargetActionSupport from "ember-views/mixins/view_target_action_support";
+import EventDispatcher from 'ember-views/system/event_dispatcher';
+import ViewTargetActionSupport from 'ember-views/mixins/view_target_action_support';
+import ComponentLookup from 'ember-views/component_lookup';
+import Checkbox from 'ember-views/views/checkbox';
+import TextSupport from 'ember-views/mixins/text_support';
+import TextField from 'ember-views/views/text_field';
+import TextArea from 'ember-views/views/text_area';
+
+import {
+  DeprecatedSelect,
+  SelectOption,
+  SelectOptgroup
+} from 'ember-views/views/select';
+import _MetamorphView, { _Metamorph } from 'ember-views/compat/metamorph_view';
+import LegacyEachView from 'ember-views/views/legacy_each_view';
+
 // END IMPORTS
 
 /**
@@ -37,6 +48,7 @@ import ViewTargetActionSupport from "ember-views/mixins/view_target_action_suppo
 
   @method $
   @for Ember
+ @public
 */
 
 // BEGIN EXPORTS
@@ -46,19 +58,35 @@ Ember.ViewTargetActionSupport = ViewTargetActionSupport;
 Ember.RenderBuffer = RenderBuffer;
 
 var ViewUtils = Ember.ViewUtils = {};
-ViewUtils.setInnerHTML = setInnerHTML;
 ViewUtils.isSimpleClick = isSimpleClick;
+ViewUtils.getViewClientRects = getViewClientRects;
+ViewUtils.getViewBoundingClientRect = getViewBoundingClientRect;
 
-Ember.CoreView = CoreView;
-Ember.View = View;
+Ember.CoreView = DeprecatedCoreView;
+Ember.View = DeprecatedView;
 Ember.View.states = states;
 Ember.View.cloneStates = cloneStates;
+Ember.View._Renderer = Renderer;
+Ember.Checkbox = Checkbox;
+Ember.TextField = TextField;
+Ember.TextArea = TextArea;
 
-Ember._ViewCollection = ViewCollection;
+Ember.Select = DeprecatedSelect;
+Ember.SelectOption = SelectOption;
+Ember.SelectOptgroup = SelectOptgroup;
+
+Ember.TextSupport = TextSupport;
+Ember.ComponentLookup = ComponentLookup;
 Ember.ContainerView = ContainerView;
 Ember.CollectionView = CollectionView;
 Ember.Component = Component;
 Ember.EventDispatcher = EventDispatcher;
+
+// Deprecated:
+Ember._Metamorph = _Metamorph;
+Ember._MetamorphView = _MetamorphView;
+Ember._LegacyEachView = LegacyEachView;
+
 // END EXPORTS
 
 export default Ember;

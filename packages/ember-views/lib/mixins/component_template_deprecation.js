@@ -1,18 +1,14 @@
 import Ember from 'ember-metal/core'; // Ember.deprecate
-import { get } from "ember-metal/property_get";
+import { get } from 'ember-metal/property_get';
 import { Mixin } from 'ember-metal/mixin';
 
-/**
+/*
   The ComponentTemplateDeprecation mixin is used to provide a useful
   deprecation warning when using either `template` or `templateName` with
   a component. The `template` and `templateName` properties specified at
   extend time are moved to `layout` and `layoutName` respectively.
 
-  `Ember.ComponentTemplateDeprecation` is used internally by Ember in
-  `Ember.Component`.
-
-  @class ComponentTemplateDeprecation
-  @namespace Ember
+  This is used internally by Ember in `Ember.Component`.
 */
 export default Mixin.create({
   /**
@@ -28,16 +24,16 @@ export default Mixin.create({
     @method willMergeMixin
     @since 1.4.0
   */
-  willMergeMixin: function(props) {
+  willMergeMixin(props) {
     // must call _super here to ensure that the ActionHandler
     // mixin is setup properly (moves actions -> _actions)
     //
     // Calling super is only OK here since we KNOW that
     // there is another Mixin loaded first.
-    this._super.apply(this, arguments);
+    this._super(...arguments);
 
-    var deprecatedProperty, replacementProperty,
-        layoutSpecified = (props.layoutName || props.layout || get(this, 'layoutName'));
+    var deprecatedProperty, replacementProperty;
+    var layoutSpecified = (props.layoutName || props.layout || get(this, 'layoutName'));
 
     if (props.templateName && !layoutSpecified) {
       deprecatedProperty = 'templateName';
@@ -55,8 +51,6 @@ export default Mixin.create({
       delete props['template'];
     }
 
-    if (deprecatedProperty) {
-      Ember.deprecate('Do not specify ' + deprecatedProperty + ' on a Component, use ' + replacementProperty + ' instead.', false);
-    }
+    Ember.deprecate('Do not specify ' + deprecatedProperty + ' on a Component, use ' + replacementProperty + ' instead.', !deprecatedProperty);
   }
 });

@@ -1,6 +1,6 @@
-import Ember from "ember-metal/core"; // Logger
-import { get } from "ember-metal/property_get";
-import { isArray } from "ember-metal/utils";
+import Ember from 'ember-metal/core'; // Logger
+import { get } from 'ember-metal/property_get';
+import { isArray } from 'ember-runtime/utils';
 
 /**
 @module ember
@@ -24,7 +24,7 @@ import { isArray } from "ember-metal/utils";
 */
 
 export function generateControllerFactory(container, controllerName, context) {
-  var Factory, fullName, instance, name, factoryName, controllerType;
+  var Factory, fullName, factoryName, controllerType;
 
   if (context && isArray(context)) {
     controllerType = 'array';
@@ -34,18 +34,18 @@ export function generateControllerFactory(container, controllerName, context) {
     controllerType = 'basic';
   }
 
-  factoryName = 'controller:' + controllerType;
+  factoryName = `controller:${controllerType}`;
 
   Factory = container.lookupFactory(factoryName).extend({
     isGenerated: true,
-    toString: function() {
-      return "(generated " + controllerName + " controller)";
+    toString() {
+      return `(generated ${controllerName} controller)`;
     }
   });
 
-  fullName = 'controller:' + controllerName;
+  fullName = `controller:${controllerName}`;
 
-  container.register(fullName,  Factory);
+  container._registry.register(fullName, Factory);
 
   return Factory;
 }
@@ -65,11 +65,12 @@ export function generateControllerFactory(container, controllerName, context) {
 */
 export default function generateController(container, controllerName, context) {
   generateControllerFactory(container, controllerName, context);
-  var fullName = 'controller:' + controllerName;
+
+  var fullName = `controller:${controllerName}`;
   var instance = container.lookup(fullName);
 
   if (get(instance, 'namespace.LOG_ACTIVE_GENERATION')) {
-    Ember.Logger.info("generated -> " + fullName, { fullName: fullName });
+    Ember.Logger.info(`generated -> ${fullName}`, { fullName: fullName });
   }
 
   return instance;

@@ -1,5 +1,3 @@
-import Ember from 'ember-metal/core'; // deprecateFunc
-
 /**
   Returns true if the passed value is null or undefined. This avoids errors
   from JSLint complaining about use of ==, which can be technically
@@ -18,12 +16,8 @@ import Ember from 'ember-metal/core'; // deprecateFunc
   @for Ember
   @param {Object} obj Value to test
   @return {Boolean}
+  @public
 */
-function isNone(obj) {
+export default function isNone(obj) {
   return obj === null || obj === undefined;
 }
-
-export var none = Ember.deprecateFunc("Ember.none is deprecated. Please use Ember.isNone instead.", isNone);
-
-export default isNone;
-export { isNone };

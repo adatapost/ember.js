@@ -1,40 +1,42 @@
 import Ember from 'ember-metal/core'; // A
-import { get } from "ember-metal/property_get";
-import { set } from "ember-metal/property_set";
-import run from "ember-metal/run_loop";
+import { get } from 'ember-metal/property_get';
+import { set } from 'ember-metal/property_set';
+import run from 'ember-metal/run_loop';
 
-import Container from 'container/container';
-import Namespace from "ember-runtime/system/namespace";
-import { classify } from "ember-runtime/system/string";
-import Controller from "ember-runtime/controllers/controller";
-import ObjectController from "ember-runtime/controllers/object_controller";
-import ArrayController from "ember-runtime/controllers/array_controller";
-import controllerFor from "ember-routing/system/controller_for";
+import Registry from 'container/registry';
+import Namespace from 'ember-runtime/system/namespace';
+import { classify } from 'ember-runtime/system/string';
+import Controller from 'ember-runtime/controllers/controller';
+import ObjectController from 'ember-runtime/controllers/object_controller';
+import ArrayController, { arrayControllerDeprecation } from 'ember-runtime/controllers/array_controller';
+import controllerFor from 'ember-routing/system/controller_for';
+import generateController from 'ember-routing/system/generate_controller';
 import {
-  generateControllerFactory,
-  default as generateController
-} from "ember-routing/system/generate_controller";
+  generateControllerFactory
+} from 'ember-routing/system/generate_controller';
 
 var buildContainer = function(namespace) {
-  var container = new Container();
+  var registry = new Registry();
+  var container = registry.container();
 
-  container.set = set;
-  container.resolver = resolverFor(namespace);
-  container.optionsForType('view', { singleton: false });
+  registry.set = set;
+  registry.resolver = resolverFor(namespace);
+  registry.optionsForType('view', { singleton: false });
 
-  container.register('application:main', namespace, { instantiate: false });
+  registry.register('application:main', namespace, { instantiate: false });
 
-  container.register('controller:basic', Controller, { instantiate: false });
-  container.register('controller:object', ObjectController, { instantiate: false });
-  container.register('controller:array', ArrayController, { instantiate: false });
+  registry.register('controller:basic', Controller, { instantiate: false });
+  registry.register('controller:object', ObjectController, { instantiate: false });
+  registry.register('controller:array', ArrayController, { instantiate: false });
 
   return container;
 };
 
 function resolverFor(namespace) {
   return function(fullName) {
-    var nameParts = fullName.split(":"),
-        type = nameParts[0], name = nameParts[1];
+    var nameParts = fullName.split(':');
+    var type = nameParts[0];
+    var name = nameParts[1];
 
     if (name === 'basic') {
       name = '';
@@ -42,22 +44,20 @@ function resolverFor(namespace) {
     var className = classify(name) + classify(type);
     var factory = get(namespace, className);
 
-
-
     if (factory) { return factory; }
   };
 }
 
 var container, appController, namespace;
 
-QUnit.module("Ember.controllerFor", {
-  setup: function() {
+QUnit.module('Ember.controllerFor', {
+  setup() {
     namespace = Namespace.create();
     container = buildContainer(namespace);
-    container.register('controller:app', Controller.extend());
+    container._registry.register('controller:app', Controller.extend());
     appController = container.lookup('controller:app');
   },
-  teardown: function() {
+  teardown() {
     run(function () {
       container.destroy();
       namespace.destroy();
@@ -65,18 +65,18 @@ QUnit.module("Ember.controllerFor", {
   }
 });
 
-test("controllerFor should lookup for registered controllers", function() {
+QUnit.test('controllerFor should lookup for registered controllers', function() {
   var controller = controllerFor(container, 'app');
 
   equal(appController, controller, 'should find app controller');
 });
 
-QUnit.module("Ember.generateController", {
-  setup: function() {
+QUnit.module('Ember.generateController', {
+  setup() {
     namespace = Namespace.create();
     container = buildContainer(namespace);
   },
-  teardown: function() {
+  teardown() {
     run(function () {
       container.destroy();
       namespace.destroy();
@@ -84,32 +84,33 @@ QUnit.module("Ember.generateController", {
   }
 });
 
-test("generateController and generateControllerFactory are properties on the root namespace", function() {
+QUnit.test('generateController and generateControllerFactory are properties on the root namespace', function() {
   equal(Ember.generateController, generateController, 'should export generateController');
   equal(Ember.generateControllerFactory, generateControllerFactory, 'should export generateControllerFactory');
 });
 
-test("generateController should create Ember.Controller", function() {
+QUnit.test('generateController should create Ember.Controller', function() {
   var controller = generateController(container, 'home');
 
   ok(controller instanceof Controller, 'should create controller');
 });
 
-test("generateController should create Ember.ObjectController", function() {
+QUnit.test('generateController should create Ember.ObjectController [DEPRECATED]', function() {
   var context = {};
   var controller = generateController(container, 'home', context);
 
   ok(controller instanceof ObjectController, 'should create controller');
 });
 
-test("generateController should create Ember.ArrayController", function() {
+QUnit.test('generateController should create Ember.ArrayController', function() {
+  expectDeprecation(arrayControllerDeprecation);
   var context = Ember.A();
   var controller = generateController(container, 'home', context);
 
   ok(controller instanceof ArrayController, 'should create controller');
 });
 
-test("generateController should create App.Controller if provided", function() {
+QUnit.test('generateController should create App.Controller if provided', function() {
   var controller;
   namespace.Controller = Controller.extend();
 
@@ -118,8 +119,9 @@ test("generateController should create App.Controller if provided", function() {
   ok(controller instanceof namespace.Controller, 'should create controller');
 });
 
-test("generateController should create App.ObjectController if provided", function() {
-  var context = {}, controller;
+QUnit.test('generateController should create App.ObjectController if provided', function() {
+  var context = {};
+  var controller;
   namespace.ObjectController = ObjectController.extend();
 
   controller = generateController(container, 'home', context);
@@ -128,8 +130,10 @@ test("generateController should create App.ObjectController if provided", functi
 
 });
 
-test("generateController should create App.ArrayController if provided", function() {
-  var context = Ember.A(), controller;
+QUnit.test('generateController should create App.ArrayController if provided', function() {
+  expectDeprecation(arrayControllerDeprecation);
+  var context = Ember.A();
+  var controller;
   namespace.ArrayController = ArrayController.extend();
 
   controller = generateController(container, 'home', context);

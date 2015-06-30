@@ -4,16 +4,15 @@
 */
 
 // Ember.lookup, Ember.BOOTED, Ember.deprecate, Ember.NAME_KEY, Ember.anyUnprocessedMixins
-import Ember from "ember-metal/core";
-import { get } from "ember-metal/property_get";
-import { indexOf } from "ember-metal/array";
+import Ember from 'ember-metal/core';
+import { get } from 'ember-metal/property_get';
 import {
   GUID_KEY,
   guidFor
-} from "ember-metal/utils";
-import { Mixin } from "ember-metal/mixin";
+} from 'ember-metal/utils';
+import { Mixin } from 'ember-metal/mixin';
 
-import EmberObject from "ember-runtime/system/object";
+import EmberObject from 'ember-runtime/system/object';
 
 /**
   A Namespace is an object usually used to contain other objects or methods
@@ -31,37 +30,38 @@ import EmberObject from "ember-runtime/system/object";
   @class Namespace
   @namespace Ember
   @extends Ember.Object
+  @public
 */
 var Namespace = EmberObject.extend({
   isNamespace: true,
 
-  init: function() {
+  init() {
     Namespace.NAMESPACES.push(this);
     Namespace.PROCESSED = false;
   },
 
-  toString: function() {
-    var name = get(this, 'name');
+  toString() {
+    var name = get(this, 'name') || get(this, 'modulePrefix');
     if (name) { return name; }
 
     findNamespaces();
     return this[NAME_KEY];
   },
 
-  nameClasses: function() {
+  nameClasses() {
     processNamespace([this.toString()], this, {});
   },
 
-  destroy: function() {
-    var namespaces = Namespace.NAMESPACES,
-        toString = this.toString();
+  destroy() {
+    var namespaces = Namespace.NAMESPACES;
+    var toString = this.toString();
 
     if (toString) {
       Ember.lookup[toString] = undefined;
       delete Namespace.NAMESPACES_BY_ID[toString];
     }
-    namespaces.splice(indexOf.call(namespaces, this), 1);
-    this._super();
+    namespaces.splice(namespaces.indexOf(this), 1);
+    this._super(...arguments);
   }
 });
 
@@ -70,7 +70,7 @@ Namespace.reopenClass({
   NAMESPACES_BY_ID: {},
   PROCESSED: false,
   processAll: processAllNamespaces,
-  byName: function(name) {
+  byName(name) {
     if (!Ember.BOOTED) {
       processAllNamespaces();
     }
@@ -89,7 +89,7 @@ function processNamespace(paths, root, seen) {
   NAMESPACES_BY_ID[paths.join('.')] = root;
 
   // Loop over all of the keys in the namespace, looking for classes
-  for(var key in root) {
+  for (var key in root) {
     if (!hasOwnProp.call(root, key)) { continue; }
     var obj = root[key];
 
@@ -133,7 +133,8 @@ function tryIsNamespace(lookup, prop) {
 }
 
 function findNamespaces() {
-  var lookup = Ember.lookup, obj, isNamespace;
+  var lookup = Ember.lookup;
+  var obj;
 
   if (Namespace.PROCESSED) { return; }
 
@@ -158,8 +159,11 @@ var NAME_KEY = Ember.NAME_KEY = GUID_KEY + '_name';
 function superClassString(mixin) {
   var superclass = mixin.superclass;
   if (superclass) {
-    if (superclass[NAME_KEY]) { return superclass[NAME_KEY]; }
-    else { return superClassString(superclass); }
+    if (superclass[NAME_KEY]) {
+      return superclass[NAME_KEY];
+    } else {
+      return superClassString(superclass);
+    }
   } else {
     return;
   }
@@ -179,9 +183,9 @@ function classToString() {
   } else {
     var str = superClassString(this);
     if (str) {
-      ret = "(subclass of " + str + ")";
+      ret = '(subclass of ' + str + ')';
     } else {
-      ret = "(unknown mixin)";
+      ret = '(unknown mixin)';
     }
     this.toString = makeToString(ret);
   }
@@ -190,8 +194,8 @@ function classToString() {
 }
 
 function processAllNamespaces() {
-  var unprocessedNamespaces = !Namespace.PROCESSED,
-      unprocessedMixins = Ember.anyUnprocessedMixins;
+  var unprocessedNamespaces = !Namespace.PROCESSED;
+  var unprocessedMixins = Ember.anyUnprocessedMixins;
 
   if (unprocessedNamespaces) {
     findNamespaces();
@@ -199,7 +203,9 @@ function processAllNamespaces() {
   }
 
   if (unprocessedNamespaces || unprocessedMixins) {
-    var namespaces = Namespace.NAMESPACES, namespace;
+    var namespaces = Namespace.NAMESPACES;
+    var namespace;
+
     for (var i=0, l=namespaces.length; i<l; i++) {
       namespace = namespaces[i];
       processNamespace([namespace.toString()], namespace, {});

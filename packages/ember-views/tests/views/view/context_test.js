@@ -1,12 +1,11 @@
-import Ember from "ember-metal/core";
-import run from "ember-metal/run_loop";
+import run from 'ember-metal/run_loop';
 
-import EmberView from "ember-views/views/view";
-import ContainerView from "ember-views/views/container_view";
+import EmberView from 'ember-views/views/view';
+import ContainerView from 'ember-views/views/container_view';
 
-QUnit.module("EmberView - context property");
+QUnit.module('EmberView - context property');
 
-test("setting a controller on an inner view should change it context", function() {
+QUnit.test('setting a controller on an inner view should change it context', function() {
   var App = {};
   var a = { name: 'a' };
   var b = { name: 'b' };
@@ -41,4 +40,3 @@ test("setting a controller on an inner view should change it context", function(
     outerView.destroy();
   });
 });
-
